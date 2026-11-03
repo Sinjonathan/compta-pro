@@ -55,17 +55,28 @@ Choisir le **mois** en haut ; tout est enregistré automatiquement à chaque mod
 - Trier en cliquant sur un **titre de colonne** ; élargir une colonne en glissant son bord.
 - Filtres **À vérifier** / **Ajouts manuels** et recherche par patiente.
 - En haut, le **récapitulatif** : totaux du mois, et partage en cas de remplacement
-  (rétrocession de 25 % des actes, réglable dans les Tarifs).
+  (rétrocession de 25 % des actes, réglable dans les Tarifs). Le mois peut ensuite être
+  **clôturé** (voir plus bas).
+
+### Clôturer un mois
+Quand le mois est terminé et payé : **Clôturer le mois**. Ses montants sont figés (une
+modification ultérieure de la grille ne le change plus) et il passe en lecture seule.
+- La clôture est refusée tant qu'il reste des lignes à vérifier (orange ou rouges).
+- Une FSE qui arrive en retard pour un mois clôturé n'y est pas ajoutée : l'import le signale.
+- En cas d'erreur découverte après coup : **Rouvrir le mois** (une confirmation indique combien
+  de lignes changeraient de montant avec la grille actuelle), corriger, puis clôturer à nouveau.
 
 ### Exporter
 - **Exporter .xlsx** : le décompte du mois et un onglet récapitulatif.
 - **PDF** : ouvre l'impression du navigateur ; choisir « Enregistrer au format PDF ».
 
 ### Tarifs
-Onglet **Tarifs** : une seule grille pour tous les mois (cotations, majorations, tiers payant,
-IK, MD, taux de rétrocession).
-- **Hausse de tarif** : ne pas modifier la ligne existante, **ajouter une ligne** avec la même
-  cotation et la date « depuis » — les mois passés gardent l'ancien tarif.
+Onglet **Tarifs** : une seule grille (cotations, majorations, tiers payant, IK, MD, taux de
+rétrocession). Toute modification — tarif, majoration, nom d'une cotation, paramètre —
+s'applique à **tous les mois non clôturés** ; les mois clôturés gardent leurs montants.
+**Changer la grille avant de faire la compta du mois concerné.**
+- **Renommer** une cotation renomme aussi les lignes des mois non clôturés.
+- Une cotation utilisée dans un mois non clôturé ne peut pas être supprimée.
 - **Deux actes sur une même FSE** (ex. 48 € = deux SF7,5) : ajouter la cotation « 2×SF7,5 » ;
   les lignes concernées se mettent à jour.
 
@@ -84,6 +95,7 @@ Tout est dans **Documents › Compta pro - données** (menu **€ › Ouvrir le 
 | Fichier | Contenu |
 |---|---|
 | `AAAA-MM.csv` | un fichier par mois (lisible dans Numbers ou Excel) |
+| `AAAA-MM.cloture.json` | pour un mois clôturé : sa date de clôture et la grille figée |
 | `tarifs.csv`, `parametres.csv`, `reglages.csv` | la grille et les réglages |
 | `exports Ingenus/` | les exports importés |
 | `sauvegardes/` | copie de chaque mois avant la première modification du jour |

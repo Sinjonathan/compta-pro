@@ -54,8 +54,54 @@ async function chargerMois(cle) {
   try { localStorage.setItem("compta-mois", cle); } catch (e) { /* stockage indisponible */ }
   $("#btn-xlsx").href = `/export/${cle}.xlsx`;
   etat.donnees = await api("GET", `/api/mois/${cle}`);
+  rendreEtatMois();
   rendreRecap();
   rendreLignes();
+}
+
+// ------------------------------------------------------------------ clôture du mois
+
+const clos = () => Boolean(etat.donnees && etat.donnees.cloture);
+
+function rendreEtatMois() {
+  const d = etat.donnees, b = $("#btn-cloture"), e = $("#etat-mois");
+  document.body.classList.toggle("mois-clos", clos());
+  if (clos()) {
+    e.textContent = `🔒 Clôturé le ${d.cloture.split("-").reverse().join("/")} : montants figés`;
+    e.className = "etat-mois clos";
+    b.textContent = "Rouvrir le mois";
+  } else {
+    e.textContent = d.lignes.length ? "Mois ouvert" : "";
+    e.className = "etat-mois";
+    b.textContent = "Clôturer le mois";
+  }
+  b.hidden = !d.lignes.length && !clos();
+}
+
+/** Mois clôturé : tout le tableau en lecture seule. */
+function verrouiller(racine) {
+  if (clos()) racine.querySelectorAll("input, select, button").forEach((x) => { x.disabled = true; });
+}
+
+async function basculerCloture() {
+  const mois = libelleMois(etat.mois);
+  try {
+    if (clos()) {
+      const { lignes_changeantes: n, cotations_absentes: p } = await api("GET", `/api/mois/${etat.mois}/reouverture`);
+      const effet = (n ? `${n} ligne(s) changeront de montant avec la grille actuelle.`
+        : "Aucun montant ne change avec la grille actuelle.")
+        + (p ? `\n${p} ligne(s) utilisent une cotation renommée ou supprimée depuis : elles passeront à vérifier.` : "");
+      if (!confirm(`Rouvrir ${mois} ? Ses montants ne seront plus figés et il redeviendra modifiable.\n\n${effet}`)) return;
+      etat.donnees = await api("DELETE", `/api/mois/${etat.mois}/cloture`);
+      toast(`${mois} est rouvert.`);
+    } else {
+      if (!confirm(`Clôturer ${mois} ? Ses montants seront figés : une modification de la grille ne le changera plus, `
+        + `et il passera en lecture seule (on peut le rouvrir).`)) return;
+      etat.donnees = await api("POST", `/api/mois/${etat.mois}/cloture`);
+      toast(`${mois} est clôturé.`);
+    }
+  } catch (e) { toast(e.message, 6000); return; }
+  rendreEtatMois(); rendreRecap(); rendreLignes();
 }
 
 function rendreRecap() {
@@ -211,6 +257,7 @@ const tableDecompte = tableTriable({ selecteur: "table.decompte", colonnes: COLO
 
 function rendreLignes() {
   $("#lignes").replaceChildren(...tableDecompte.trier(etat.donnees.lignes.filter(visible)).map(rendreLigne));
+  verrouiller($("#lignes"));
   $("#vide").hidden = etat.donnees.lignes.length > 0;
 }
 
@@ -289,6 +336,10 @@ async function importer(fichiers) {
       etat.general.mois = r.mois;
       if (r.ignorees) messages.push(`${r.ignorees} FSE antérieures au début de la compta (${libelleMois(r.debut)}) ignorées`);
       for (const b of r.bilans) {
+        if (b.hors_cloture) {
+          messages.push(`${libelleMois(b.mois)} est clôturé : ${b.hors_cloture} FSE non intégrée(s), rouvre le mois pour les ajouter`);
+          continue;
+        }
         messages.push(`${libelleMois(b.mois)} : ${b.nouvelles} FSE ajoutées, ${b.mises_a_jour} mises à jour` +
           (b.a_verifier ? `, ${b.a_verifier} à vérifier` : ""));
         dernier = b.mois;
@@ -312,7 +363,7 @@ function imprimer() {
     el("td", { class: "n" }, nb(l.calcul.total)), el("td", { class: "n" }, nb(l.montant_ingenus)),
     el("td", { class: l.calcul.controle === "à vérifier" ? "ko" : "" }, l.calcul.controle), el("td", {}, l.fse)));
   $("#impression").replaceChildren(
-    el("h1", {}, `Décompte — ${libelleMois(d.mois)}`),
+    el("h1", {}, `Décompte — ${libelleMois(d.mois)}` + (d.cloture ? ` (clôturé le ${d.cloture.split("-").reverse().join("/")})` : "")),
     el("div", { class: "recap-imp" },
       ligneRecap("Total actes", euros(r.total_actes)), ligneRecap("Total frais", euros(r.total_frais)),
       ligneRecap("Titulaire (seule)", euros(r.titulaire_seule)), ligneRecap("Total Ingenus (FSE)", euros(r.total_ingenus)),
@@ -351,8 +402,6 @@ const COLONNES_ACTES = [
     cellule: (a) => champ(a, "precoce", { inputmode: "decimal" }) },
   { cle: "tiers_payant", titre: "Tiers payant", largeur: 110, align: "c", tri: (a) => (a.tiers_payant ? 1 : 0),
     cellule: (a) => el("input", { type: "checkbox", checked: a.tiers_payant, onchange: (e) => { a.tiers_payant = e.target.checked; } }) },
-  { cle: "depuis", titre: "Depuis", largeur: 150, tri: (a) => String(a.depuis ?? ""),
-    cellule: (a) => champ(a, "depuis", { type: "date" }) },
   { cle: "actions", titre: "", largeur: 48, align: "c",
     cellule: (a) => el("button", { class: "icone", title: "Supprimer", onclick: () => {
       etat.tarifs.actes.splice(etat.tarifs.actes.indexOf(a), 1); rendreTarifs(); } }, "🗑") },
@@ -363,13 +412,10 @@ function rendreTarifs() {
   const t = etat.tarifs;
   $("#tarifs-actes").replaceChildren(...tableActes.trier(t.actes).map((a) => el("tr", {},
     COLONNES_ACTES.map((c) => el("td", { class: c.align || "" }, c.cellule(a))))));
-  const noms = { ik: "IK (€ par km)", md: "MD (€)", part_patiente: "Part patiente en tiers payant", retrocession: "Taux de rétrocession" };
-  $("#tarifs-params").replaceChildren(...t.parametres.map((p, i) => el("tr", {},
-    el("td", {}, el("select", { onchange: (e) => { p.cle = e.target.value; } },
-      Object.entries(noms).map(([k, v]) => el("option", { value: k, selected: k === p.cle }, v)))),
-    el("td", { class: "n" }, champ(p, "valeur", { inputmode: "decimal" })),
-    el("td", {}, champ(p, "depuis", { type: "date" })),
-    el("td", {}, el("button", { class: "icone", title: "Supprimer", onclick: () => { t.parametres.splice(i, 1); rendreTarifs(); } }, "🗑")))));
+  const noms = { ik: "IK (€ par km)", md: "MD (€)", part_patiente: "Part patiente en tiers payant (0,3 = 30 %)",
+    retrocession: "Taux de rétrocession (0,25 = 25 %)" };
+  $("#tarifs-params").replaceChildren(...Object.entries(noms).map(([k, v]) => el("tr", {},
+    el("td", {}, v), el("td", { class: "n" }, champ(t.parametres, k, { inputmode: "decimal" })))));
 }
 
 async function enregistrerTarifs() {
@@ -377,8 +423,11 @@ async function enregistrerTarifs() {
     etat.tarifs = await api("PUT", "/api/tarifs", etat.tarifs);
     etat.general = await api("GET", "/api/etat");
     rendreTarifs();
-    toast("Tarifs enregistrés." + (etat.tarifs.reevaluees ? ` ${etat.tarifs.reevaluees} ligne(s) à vérifier mise(s) à jour.` : ""), 5000);
-  } catch (e) { toast(e.message); }
+    const t = etat.tarifs;
+    toast("Tarifs enregistrés."
+      + (t.renommees ? ` ${t.renommees} ligne(s) des mois non clôturés renommée(s).` : "")
+      + (t.reevaluees ? ` ${t.reevaluees} ligne(s) à vérifier mise(s) à jour.` : ""), 6000);
+  } catch (e) { toast(e.message, 8000); }
 }
 
 function changerVue(vue) {
@@ -439,11 +488,9 @@ async function demarrer() {
   $("#btn-pdf").addEventListener("click", imprimer);
   $("#btn-tarifs").addEventListener("click", enregistrerTarifs);
   $("#btn-ajout-acte").addEventListener("click", () => {
-    etat.tarifs.actes.push({ cotation: "", tarif: "", ferie: 21, precoce: 25, tiers_payant: false, depuis: "" }); rendreTarifs();
+    etat.tarifs.actes.push({ cotation: "", ancien: "", tarif: "", ferie: 21, precoce: 25, tiers_payant: false }); rendreTarifs();
   });
-  $("#btn-ajout-param").addEventListener("click", () => {
-    etat.tarifs.parametres.push({ cle: "ik", valeur: "", depuis: etat.general.aujourdhui }); rendreTarifs();
-  });
+  $("#btn-cloture").addEventListener("click", basculerCloture);
 
   // Glisser-déposer des exports sur toute la fenêtre
   let profondeur = 0;

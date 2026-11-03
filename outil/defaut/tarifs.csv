@@ -1,21 +1,21 @@
-cotation;tarif;ferie;precoce;tiers_payant;depuis
-C;26,5;21;25;oui;
-C+DIU;64,9;21;25;oui;
-C+R IMPL;68,3;21;25;oui;
-C+SF11,6;63,62;21;25;non;
-C+V;49,5;42;25;non;
-CCP;47,5;21;25;non;
-DIU;38,4;21;25;oui;
-EPN;48;21;25;non;
-FCV;38,96;21;25;oui;
-MA FE 1;53;21;25;non;
-MA FE 2;71,92;21;25;non;
-R IMPL;41,8;21;25;oui;
-SF11,6;37,12;21;25;non;
-SF12;38,4;21;25;non;
-SF16,5;52,8;21;25;non;
-SF7,5;24;21;25;oui;
-SP 12;38,4;21;25;non;
-SP 14;44,8;21;25;non;
-SP 9;28,8;21;25;non;
-V;26,5;21;25;non;
+cotation;tarif;ferie;precoce;tiers_payant
+C;26,5;21;25;oui
+C+DIU;64,9;21;25;oui
+C+R IMPL;68,3;21;25;oui
+C+SF11,6;63,62;21;25;non
+C+V;49,5;42;25;non
+CCP;47,5;21;25;non
+DIU;38,4;21;25;oui
+EPN;48;21;25;non
+FCV;38,96;21;25;oui
+MA FE 1;53;21;25;non
+MA FE 2;71,92;21;25;non
+R IMPL;41,8;21;25;oui
+SF11,6;37,12;21;25;non
+SF12;38,4;21;25;non
+SF16,5;52,8;21;25;non
+SF7,5;24;21;25;oui
+SP 12;38,4;21;25;non
+SP 14;44,8;21;25;non
+SP 9;28,8;21;25;non
+V;26,5;21;25;non

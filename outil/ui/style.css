@@ -84,6 +84,10 @@ td.cot.rouge { background: var(--rouge); box-shadow: inset 3px 0 var(--rouge-bor
 .badge.ko { color: var(--ko); border: 1px solid var(--ko); }
 .fse { color: var(--doux); font-size: 12px; font-variant-numeric: tabular-nums; }
 .icone { border: none; background: none; padding: 2px 6px; color: var(--doux); }
+.etat-mois { margin-left: auto; color: var(--doux); }
+.etat-mois.clos { color: var(--ok); font-weight: 600; }
+body.mois-clos #btn-ajout { display: none; }
+body.mois-clos td input, body.mois-clos td select { color: var(--texte); opacity: 1; }
 .icone:hover { color: var(--texte); }
 .vide { padding: 24px; text-align: center; color: var(--doux); }
 

@@ -37,6 +37,8 @@
       </div>
       <input type="search" id="recherche" placeholder="Chercher une patiente…">
       <button id="btn-ajout">+ Ajouter une ligne</button>
+      <span id="etat-mois" class="etat-mois"></span>
+      <button id="btn-cloture"></button>
     </section>
     <div class="table-boite">
       <table class="decompte">
@@ -49,8 +51,9 @@
 
   <main id="vue-tarifs" hidden>
     <section class="tarifs-intro">
-      <p>Une seule grille pour tous les décomptes. Pour une <strong>hausse de tarif</strong>, ne modifie pas la ligne :
-        ajoute une nouvelle ligne avec la même cotation et la date « depuis » — les mois passés gardent l'ancien tarif.</p>
+      <p>Une seule grille pour tous les décomptes. Une modification (tarif, majoration, nom de cotation,
+        paramètre) s'applique à <strong>tous les mois non clôturés</strong> ; les mois <strong>clôturés</strong>
+        gardent leurs montants. Changer la grille <strong>avant</strong> de faire la compta du mois concerné.</p>
     </section>
     <h2>Actes</h2>
     <div class="table-boite">
@@ -63,11 +66,10 @@
     <h2>Paramètres</h2>
     <div class="table-boite">
       <table class="tarifs">
-        <thead><tr><th>Paramètre</th><th class="n">Valeur</th><th>Depuis</th><th></th></tr></thead>
+        <thead><tr><th>Paramètre</th><th class="n">Valeur</th></tr></thead>
         <tbody id="tarifs-params"></tbody>
       </table>
     </div>
-    <button id="btn-ajout-param">+ Ajouter une valeur datée</button>
     <div class="enregistrer"><button id="btn-tarifs" class="principal">Enregistrer les tarifs</button></div>
   </main>
 

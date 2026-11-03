@@ -1,10 +1,12 @@
 """Stockage des décomptes : un CSV par mois dans donnees/, et les calculs d'une ligne.
 
-Seules les saisies et les données Ingenus sont stockées ; acte, frais et total
-sont recalculés avec la grille en vigueur à la date de l'acte (docs/adr/0001).
+Seules les saisies et les données Ingenus sont stockées ; acte, frais et total sont
+recalculés avec la grille actuelle, ou, pour un mois clôturé, avec la copie de la grille
+enregistrée à sa clôture (AAAA-MM.cloture.json) : ses montants ne bougent plus (docs/adr/0001).
 """
 import csv
 import datetime as dt
+import json
 import os
 import re
 import shutil
@@ -13,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from tarifs import Tarifs, _bool, _num
+from tarifs import Grille, Tarifs, _bool, _num
 
 ENTETE = ["id", "date", "patiente", "cotation", "F", "P", "km", "mode",
           "montant_ingenus", "regle_patiente", "fse", "statut", "note"]
@@ -66,9 +68,8 @@ class Ligne:
             fse=r.get("fse", ""), statut=r.get("statut", ""), note=r.get("note", ""))
 
 
-def calculer(l: Ligne, tarifs: Tarifs) -> dict:
+def calculer(l: Ligne, g: Grille) -> dict:
     """Les montants d'une ligne et ses contrôles face à Ingenus."""
-    g = tarifs.grille(l.date)
     a = g.actes.get(l.cotation)
     acte = a.tarif if a else 0.0
     fp = ((a.ferie if l.ferie else 0) + (a.precoce if l.precoce else 0)) if a else 0.0
@@ -88,11 +89,11 @@ def calculer(l: Ligne, tarifs: Tarifs) -> dict:
             "ok_total": ok_total, "ok_patiente": ok_patiente, "controle": controle}
 
 
-def recapituler(lignes: List[Ligne], tarifs: Tarifs, annee: int, mois: int) -> dict:
-    calc = [calculer(l, tarifs) for l in lignes]
+def recapituler(lignes: List[Ligne], g: Grille) -> dict:
+    calc = [calculer(l, g) for l in lignes]
     actes = sum(c["acte"] for c in calc)
     frais = sum(c["frais"] for c in calc)
-    taux = tarifs.grille(dt.date(annee, mois, 1)).retrocession
+    taux = g.retrocession
     return {
         "nb_lignes": len(lignes),
         "total_actes": round(actes, 2), "total_frais": round(frais, 2),
@@ -131,6 +132,33 @@ class Depot:
     def mois_disponibles(self) -> List[str]:
         return sorted(m.group(0)[:7] for p in self.dossier.iterdir() if (m := NOM_MOIS.match(p.name)))
 
+    # ---- clôture
+    def _chemin_cloture(self, annee: int, mois: int) -> Path:
+        return self.dossier / f"{annee}-{mois:02d}.cloture.json"
+
+    def cloture(self, annee: int, mois: int) -> Optional[dict]:
+        """{"date": "AAAA-MM-JJ", "grille": {...}} si le mois est clôturé, sinon None."""
+        p = self._chemin_cloture(annee, mois)
+        return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
+
+    def est_cloture(self, annee: int, mois: int) -> bool:
+        return self._chemin_cloture(annee, mois).exists()
+
+    def cloturer(self, annee: int, mois: int, grille: Grille) -> None:
+        donnees = {"date": dt.date.today().isoformat(), "grille": grille.vers_dict()}
+        self._chemin_cloture(annee, mois).write_text(json.dumps(donnees, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    def rouvrir(self, annee: int, mois: int) -> None:
+        p = self._chemin_cloture(annee, mois)
+        if p.exists():
+            self._sauvegarde_du_jour(p)
+            p.unlink()
+
+    def grille(self, annee: int, mois: int, tarifs: Tarifs) -> Grille:
+        """La grille qui s'applique au mois : la copie de la clôture, ou la grille actuelle."""
+        c = self.cloture(annee, mois)
+        return Grille.depuis_dict(c["grille"]) if c else tarifs.grille()
+
     def lire(self, annee: int, mois: int) -> List[Ligne]:
         p = self.chemin(annee, mois)
         if not p.exists():
@@ -160,9 +188,9 @@ class Depot:
             shutil.copy2(p, d / p.name)
 
 
-def ligne_en_dict(l: Ligne, tarifs: Tarifs) -> dict:
+def ligne_en_dict(l: Ligne, g: Grille) -> dict:
     d = asdict(l)
     d["date"] = l.date.isoformat()
     d["a_verifier"] = l.a_verifier
-    d["calcul"] = calculer(l, tarifs)
+    d["calcul"] = calculer(l, g)
     return d

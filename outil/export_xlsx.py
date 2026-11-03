@@ -6,7 +6,7 @@ import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from donnees import Ligne, calculer, recapituler
-from tarifs import Tarifs
+from tarifs import Grille
 
 MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
            "septembre", "octobre", "novembre", "décembre"]
@@ -17,7 +17,7 @@ COLONNES = [("Date", 11), ("Patiente", 28), ("Cotation", 11), ("F", 4), ("P", 4)
 EUROS = '#,##0.00 "€"'
 
 
-def exporter_mois(lignes: List[Ligne], tarifs: Tarifs, annee: int, mois: int) -> bytes:
+def exporter_mois(lignes: List[Ligne], grille: Grille, annee: int, mois: int, cloture: str = "") -> bytes:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = f"Décompte {annee}-{mois:02d}"
@@ -29,7 +29,7 @@ def exporter_mois(lignes: List[Ligne], tarifs: Tarifs, annee: int, mois: int) ->
         c.alignment = Alignment(wrap_text=True, vertical="center")
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = largeur
     for r, l in enumerate(sorted(lignes, key=lambda l: l.date), start=2):
-        k = calculer(l, tarifs)
+        k = calculer(l, grille)
         valeurs = [l.date, l.patiente, l.cotation, "✓" if l.ferie else "", "✓" if l.precoce else "",
                    l.km, k["md"], k["fp"], k["acte"], k["frais"], k["total"], l.mode,
                    k["patiente"] if l.mode != "100%" else None, l.montant_ingenus, k["controle"],
@@ -46,10 +46,10 @@ def exporter_mois(lignes: List[Ligne], tarifs: Tarifs, annee: int, mois: int) ->
     ws.freeze_panes = "C2"
     ws.auto_filter.ref = f"A1:{openpyxl.utils.get_column_letter(len(COLONNES))}{max(len(lignes) + 1, 2)}"
 
-    rec = recapituler(lignes, tarifs, annee, mois)
+    rec = recapituler(lignes, grille)
     rs = wb.create_sheet("Récapitulatif")
     rs.column_dimensions["A"].width, rs.column_dimensions["B"].width = 42, 16
-    rs["A1"] = f"Récapitulatif — {MOIS_FR[mois - 1]} {annee}"
+    rs["A1"] = f"Récapitulatif — {MOIS_FR[mois - 1]} {annee}" + (f" (clôturé le {cloture})" if cloture else "")
     rs["A1"].font = Font(bold=True, size=14)
     lignes_recap = [
         ("Total actes", rec["total_actes"], EUROS), ("Total frais (F/P, MD, IK)", rec["total_frais"], EUROS),

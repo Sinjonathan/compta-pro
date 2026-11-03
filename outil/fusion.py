@@ -21,10 +21,11 @@ class Bilan:
     nouvelles: int = 0
     mises_a_jour: int = 0
     a_verifier: int = 0
+    hors_cloture: int = 0  # FSE nouvelles d'un mois clôturé : non intégrées, à signaler
 
 
 # Débuts des notes écrites par l'outil (une autre note a été écrite par la titulaire : on n'y touche pas)
-NOTES_OUTIL = ("Proposition revue", "Plusieurs cotations", "Aucune cotation", "Probablement", "Choisi d'après", "P ?",
+NOTES_OUTIL = ("Proposition revue", "Cotation « ", "Plusieurs cotations", "Aucune cotation", "Probablement", "Choisi d'après", "P ?",
                "autres possibilités")
 
 
@@ -90,7 +91,7 @@ def ligne_depuis_fse(fse: FSE, tarifs: Tarifs, savoir: Connaissances) -> Ligne:
               regle_patiente=fse.reglement_assure if fse.mode != 1 else None,
               fse=fse.numero)
     hist, freq = savoir.pour(fse.patiente, fse.date)
-    _appliquer(l, cot.proposer(fse.depense, fse.date, tarifs.grille(fse.date), hist, freq))
+    _appliquer(l, cot.proposer(fse.depense, fse.date, tarifs.grille(), hist, freq))
     return l
 
 
@@ -98,6 +99,10 @@ def integrer_mois(depot: Depot, tarifs: Tarifs, savoir: Connaissances, fses: Lis
     bilan = Bilan(f"{annee}-{mois:02d}")
     lignes = depot.lire(annee, mois)
     par_fse = {l.fse: l for l in lignes if l.fse}
+    if depot.est_cloture(annee, mois):
+        # Un mois clôturé ne change plus : une FSE arrivée en retard est seulement signalée.
+        bilan.hors_cloture = sum(1 for f in fses if f.numero not in par_fse)
+        return bilan
     for fse in fses:
         l = par_fse.get(fse.numero)
         if l is None:
@@ -130,8 +135,11 @@ def reevaluer(depot: Depot, tarifs: Tarifs, max_tours: int = 5) -> Dict[str, int
     for _ in range(max_tours):
         savoir = Connaissances(depot)
         progres = False
+        grille = tarifs.grille()
         for m in depot.mois_disponibles():
             a, mo = int(m[:4]), int(m[5:])
+            if depot.est_cloture(a, mo):
+                continue  # un mois clôturé ne bouge plus
             lignes = depot.lire(a, mo)
             modif = False
             for l in lignes:
@@ -142,7 +150,7 @@ def reevaluer(depot: Depot, tarifs: Tarifs, max_tours: int = 5) -> Dict[str, int
                 avant = (l.cotation, l.ferie, l.km, l.statut, l.note)
                 ancienne = cot.Combinaison(l.cotation, l.ferie, l.precoce, l.km)
                 hist, freq = savoir.pour(l.patiente, l.date, sauf_id=l.id)
-                prop = cot.proposer(l.montant_ingenus, l.date, tarifs.grille(l.date), hist, freq)
+                prop = cot.proposer(l.montant_ingenus, l.date, grille, hist, freq)
                 etait_auto = l.statut == "auto"
                 revue = l.note[:l.note.index(")") + 1] if l.note.startswith("Proposition revue") else ""
                 _appliquer(l, prop)

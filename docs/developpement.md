@@ -68,6 +68,8 @@ fichiers restent lisibles et sont réécrits au nouveau format à la première m
 Ne jamais renommer ni supprimer une colonne sans prévoir la lecture de l'ancien nom.
 La grille de `outil/defaut/` n'est copiée qu'au premier lancement : un changement de grille
 pour une installation existante se fait dans l'onglet Tarifs (ou par une migration dans le code).
+Une ancienne grille datée (colonne `depuis`, avant la 1.1.0) reste lisible : la version la plus
+récente de chaque cotation est gardée, et la colonne disparaît au premier enregistrement.
 
 ## Limites connues
 

@@ -1,19 +1,18 @@
-"""La grille de tarifs unique, datée (donnees/tarifs.csv et donnees/parametres.csv).
+"""La grille de tarifs unique (donnees/tarifs.csv et donnees/parametres.csv).
 
-tarifs.csv     : cotation;tarif;ferie;precoce;tiers_payant;depuis
-parametres.csv : cle;valeur;depuis        (ik, md, part_patiente, retrocession)
+tarifs.csv     : cotation;tarif;ferie;precoce;tiers_payant
+parametres.csv : cle;valeur        (ik, md, part_patiente, retrocession)
 
-Pour un acte du jour J, on prend pour chaque cotation la ligne la plus récente
-dont « depuis » ≤ J (voir docs/adr/0001).
+Une seule version par cotation : une modification vaut pour tous les mois non clôturés ;
+un mois clôturé garde la copie de la grille faite à sa clôture (voir docs/adr/0001).
 """
 import csv
-import datetime as dt
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List
 
-ENTETE_TARIFS = ["cotation", "tarif", "ferie", "precoce", "tiers_payant", "depuis"]
-ENTETE_PARAMS = ["cle", "valeur", "depuis"]
+ENTETE_TARIFS = ["cotation", "tarif", "ferie", "precoce", "tiers_payant"]
+ENTETE_PARAMS = ["cle", "valeur"]
 PARAMS_DEFAUT = {"ik": 0.61, "md": 10.0, "part_patiente": 0.3, "retrocession": 0.25}
 
 
@@ -28,21 +27,26 @@ class Acte:
 
 @dataclass
 class Grille:
-    """La grille en vigueur à une date donnée."""
     actes: Dict[str, Acte]
     ik: float  # € par km
     md: float  # majoration de déplacement
     part_patiente: float  # part payée par la patiente en tiers payant (30 %)
     retrocession: float  # part des actes reversée à la titulaire quand elle est remplacée
 
+    def vers_dict(self) -> dict:
+        return {"actes": [asdict(a) for a in self.actes.values()],
+                "params": {"ik": self.ik, "md": self.md, "part_patiente": self.part_patiente,
+                           "retrocession": self.retrocession}}
+
+    @classmethod
+    def depuis_dict(cls, d: dict) -> "Grille":
+        p = dict(PARAMS_DEFAUT, **d.get("params", {}))
+        return cls({a["cotation"]: Acte(**a) for a in d.get("actes", [])},
+                   p["ik"], p["md"], p["part_patiente"], p["retrocession"])
+
 
 def _num(s) -> float:
     return float(str(s).strip().replace(",", ".")) if str(s).strip() else 0.0
-
-
-def _date(s) -> dt.date:
-    s = str(s or "").strip()
-    return dt.date.fromisoformat(s) if s else dt.date.min
 
 
 def _bool(s) -> bool:
@@ -57,7 +61,7 @@ class Tarifs:
     def __init__(self, dossier: Path):
         self.dossier = dossier
         self.lignes: List[dict] = []
-        self.params: List[dict] = []
+        self.params: Dict[str, float] = {}
         self.recharger()
 
     @property
@@ -69,55 +73,48 @@ class Tarifs:
         return self.dossier / "parametres.csv"
 
     def recharger(self) -> None:
-        self.lignes = []
+        # Compatibilité : une ancienne grille datée (colonne « depuis ») garde la version la plus récente.
+        par_nom: Dict[str, tuple] = {}
         if self.chemin_tarifs.exists():
             with open(self.chemin_tarifs, encoding="utf-8", newline="") as fh:
                 for r in csv.DictReader(fh, delimiter=";"):
-                    if not (r.get("cotation") or "").strip():
+                    nom = (r.get("cotation") or "").strip()
+                    if not nom:
                         continue
-                    self.lignes.append({
-                        "cotation": r["cotation"].strip(), "tarif": _num(r["tarif"]),
-                        "ferie": _num(r.get("ferie", "")), "precoce": _num(r.get("precoce", "")),
-                        "tiers_payant": _bool(r.get("tiers_payant", "")), "depuis": _date(r.get("depuis")),
-                    })
-        self.params = []
+                    ligne = {"cotation": nom, "tarif": _num(r["tarif"]), "ferie": _num(r.get("ferie", "")),
+                             "precoce": _num(r.get("precoce", "")), "tiers_payant": _bool(r.get("tiers_payant", ""))}
+                    depuis = (r.get("depuis") or "").strip()
+                    if nom not in par_nom or depuis >= par_nom[nom][0]:
+                        par_nom[nom] = (depuis, ligne)
+        self.lignes = [l for _, l in par_nom.values()]
+        params: Dict[str, tuple] = {}
         if self.chemin_params.exists():
             with open(self.chemin_params, encoding="utf-8", newline="") as fh:
                 for r in csv.DictReader(fh, delimiter=";"):
-                    if (r.get("cle") or "").strip():
-                        self.params.append({"cle": r["cle"].strip(), "valeur": _num(r["valeur"]),
-                                            "depuis": _date(r.get("depuis"))})
+                    cle = (r.get("cle") or "").strip()
+                    depuis = (r.get("depuis") or "").strip()
+                    if cle and (cle not in params or depuis >= params[cle][0]):
+                        params[cle] = (depuis, _num(r["valeur"]))
+        self.params = dict(PARAMS_DEFAUT, **{k: v for k, (_, v) in params.items() if k in PARAMS_DEFAUT})
 
     def enregistrer(self) -> None:
         self.dossier.mkdir(parents=True, exist_ok=True)
         with open(self.chemin_tarifs, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh, delimiter=";")
             w.writerow(ENTETE_TARIFS)
-            for l in sorted(self.lignes, key=lambda l: (l["cotation"], l["depuis"])):
+            for l in sorted(self.lignes, key=lambda l: l["cotation"]):
                 w.writerow([l["cotation"], _fmt(l["tarif"]), _fmt(l["ferie"]), _fmt(l["precoce"]),
-                            "oui" if l["tiers_payant"] else "non",
-                            "" if l["depuis"] == dt.date.min else l["depuis"].isoformat()])
+                            "oui" if l["tiers_payant"] else "non"])
         with open(self.chemin_params, "w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh, delimiter=";")
             w.writerow(ENTETE_PARAMS)
-            for p in sorted(self.params, key=lambda p: (p["cle"], p["depuis"])):
-                w.writerow([p["cle"], _fmt(p["valeur"]),
-                            "" if p["depuis"] == dt.date.min else p["depuis"].isoformat()])
+            for cle in PARAMS_DEFAUT:
+                w.writerow([cle, _fmt(self.params[cle])])
 
-    def grille(self, date: dt.date) -> Grille:
-        actes: Dict[str, Acte] = {}
-        for l in sorted(self.lignes, key=lambda l: l["depuis"]):
-            if l["depuis"] <= date:
-                actes[l["cotation"]] = Acte(l["cotation"], l["tarif"], l["ferie"], l["precoce"], l["tiers_payant"])
-        p = dict(PARAMS_DEFAUT)
-        for x in sorted(self.params, key=lambda x: x["depuis"]):
-            if x["depuis"] <= date:
-                p[x["cle"]] = x["valeur"]
-        return Grille(actes, p["ik"], p["md"], p["part_patiente"], p["retrocession"])
+    def grille(self) -> Grille:
+        p = self.params
+        return Grille({l["cotation"]: Acte(**l) for l in self.lignes},
+                      p["ik"], p["md"], p["part_patiente"], p["retrocession"])
 
     def cotations(self) -> List[str]:
-        vues = []
-        for l in self.lignes:
-            if l["cotation"] not in vues:
-                vues.append(l["cotation"])
-        return vues
+        return sorted(l["cotation"] for l in self.lignes)

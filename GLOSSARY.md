@@ -57,6 +57,10 @@ _Avoid_: ligne validée
 **Ligne validée**:
 Ligne que la titulaire a corrigée, saisie, ou confirmée telle quelle ; seule source d'apprentissage de l'outil.
 
+**Mois clôturé**:
+Mois terminé dont les montants sont figés avec la grille du jour de sa clôture ; en lecture seule, il peut être rouvert.
+_Avoid_: mois validé, mois fermé
+
 **Début de la compta**:
 Premier mois géré par l'outil (octobre 2026) ; les FSE antérieures des exports sont ignorées.
 
