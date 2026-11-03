@@ -126,81 +126,91 @@ const memo = {
   lire(cle, defaut) { try { return JSON.parse(localStorage.getItem(cle)) ?? defaut; } catch (e) { return defaut; } },
   ecrire(cle, v) { try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
 };
-etat.tri = memo.lire("compta-tri", { cle: null, sens: 1 });
-etat.largeurs = memo.lire("compta-largeurs", {});
-const largeur = (c) => etat.largeurs[c.cle] || c.largeur;
 
-function rendreEntete() {
-  const table = $("table.decompte");
-  table.querySelector("colgroup")?.remove();
-  table.prepend(el("colgroup", {}, COLONNES.map((c) => el("col", { "data-col": c.cle, style: `width:${largeur(c)}px` }))));
-  table.style.width = COLONNES.reduce((s, c) => s + largeur(c), 0) + "px";
-  const ths = COLONNES.map((c) => {
-    const actif = etat.tri.cle === c.cle;
-    const th = el("th", { class: [c.align || "", c.tri ? "triable" : "", actif ? "trie" : ""].join(" "), title: c.aide || (c.tri ? "Cliquer pour trier" : ""),
-      "aria-sort": actif ? (etat.tri.sens > 0 ? "ascending" : "descending") : null },
-      el("span", { class: "libelle" }, c.titre),
-      c.tri ? el("span", { class: "fleche" }, actif ? (etat.tri.sens > 0 ? "▲" : "▼") : "↕") : null,
-      el("span", { class: "poignee", title: "Glisser pour élargir · double-clic : largeur d'origine" }));
-    if (c.tri) th.addEventListener("click", (e) => { if (!e.target.classList.contains("poignee")) trier(c.cle); });
-    brancherPoignee(th.querySelector(".poignee"), c);
-    return th;
-  });
-  $("table.decompte thead").replaceChildren(el("tr", {}, ths));
+// Tableau à colonnes triables (clic sur l'en-tête) et redimensionnables (bord de l'en-tête),
+// réglages mémorisés dans le navigateur. Utilisé par le décompte et la grille des actes.
+function tableTriable({ selecteur, colonnes, memoCle, rafraichir }) {
+  const t = {
+    tri: memo.lire(memoCle + "-tri", { cle: null, sens: 1 }),
+    largeurs: memo.lire(memoCle + "-largeurs", {}),
+  };
+  const largeur = (c) => t.largeurs[c.cle] || c.largeur;
+
+  t.entete = () => {
+    const table = $(selecteur);
+    table.querySelector("colgroup")?.remove();
+    table.prepend(el("colgroup", {}, colonnes.map((c) => el("col", { "data-col": c.cle, style: `width:${largeur(c)}px` }))));
+    table.style.width = colonnes.reduce((s, c) => s + largeur(c), 0) + "px";
+    const ths = colonnes.map((c) => {
+      const actif = t.tri.cle === c.cle;
+      const th = el("th", { class: [c.align || "", c.tri ? "triable" : "", actif ? "trie" : ""].join(" "), title: c.aide || (c.tri ? "Cliquer pour trier" : ""),
+        "aria-sort": actif ? (t.tri.sens > 0 ? "ascending" : "descending") : null },
+        el("span", { class: "libelle" }, c.titre),
+        c.tri ? el("span", { class: "fleche" }, actif ? (t.tri.sens > 0 ? "▲" : "▼") : "↕") : null,
+        el("span", { class: "poignee", title: "Glisser pour élargir · double-clic : largeur d'origine" }));
+      if (c.tri) th.addEventListener("click", (e) => { if (!e.target.classList.contains("poignee")) trier(c.cle); });
+      brancherPoignee(th.querySelector(".poignee"), c);
+      return th;
+    });
+    table.querySelector("thead").replaceChildren(el("tr", {}, ths));
+  };
+
+  function trier(cle) {
+    // 1er clic : croissant ; 2e : décroissant ; 3e : retour à l'ordre d'origine
+    if (t.tri.cle !== cle) t.tri = { cle, sens: 1 };
+    else if (t.tri.sens > 0) t.tri = { cle, sens: -1 };
+    else t.tri = { cle: null, sens: 1 };
+    memo.ecrire(memoCle + "-tri", t.tri);
+    t.entete();
+    rafraichir();
+  }
+
+  function brancherPoignee(poignee, c) {
+    poignee.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      delete t.largeurs[c.cle];
+      memo.ecrire(memoCle + "-largeurs", t.largeurs);
+      t.entete();
+    });
+    poignee.addEventListener("mousedown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const x0 = e.clientX, l0 = largeur(c);
+      const table = $(selecteur);
+      const col = table.querySelector(`col[data-col="${c.cle}"]`);
+      const total0 = parseFloat(table.style.width);
+      document.body.classList.add("redimension");
+      const bouger = (ev) => {
+        const l = Math.max(36, Math.round(l0 + ev.clientX - x0));
+        col.style.width = l + "px";
+        table.style.width = total0 - l0 + l + "px";
+        t.largeurs[c.cle] = l;
+      };
+      const lacher = () => {
+        document.removeEventListener("mousemove", bouger);
+        document.removeEventListener("mouseup", lacher);
+        document.body.classList.remove("redimension");
+        memo.ecrire(memoCle + "-largeurs", t.largeurs);
+      };
+      document.addEventListener("mousemove", bouger);
+      document.addEventListener("mouseup", lacher);
+    });
+  }
+
+  /** Les éléments dans l'ordre du tri choisi (ordre d'origine à égalité, ou sans tri). */
+  t.trier = (elements) => {
+    const c = colonnes.find((x) => x.cle === t.tri.cle);
+    if (!c) return elements;
+    const ordre = new Map(elements.map((x, i) => [x, i]));
+    const cmp = (a, b) => (typeof a === "string" ? a.localeCompare(b, "fr", { numeric: true }) : a - b);
+    return [...elements].sort((a, b) => cmp(c.tri(a), c.tri(b)) * t.tri.sens || ordre.get(a) - ordre.get(b));
+  };
+  return t;
 }
 
-function trier(cle) {
-  // 1er clic : croissant ; 2e : décroissant ; 3e : retour à l'ordre par date
-  if (etat.tri.cle !== cle) etat.tri = { cle, sens: 1 };
-  else if (etat.tri.sens > 0) etat.tri = { cle, sens: -1 };
-  else etat.tri = { cle: null, sens: 1 };
-  memo.ecrire("compta-tri", etat.tri);
-  rendreEntete();
-  rendreLignes();
-}
-
-function brancherPoignee(poignee, c) {
-  poignee.addEventListener("dblclick", (e) => {
-    e.stopPropagation();
-    delete etat.largeurs[c.cle];
-    memo.ecrire("compta-largeurs", etat.largeurs);
-    rendreEntete();
-  });
-  poignee.addEventListener("mousedown", (e) => {
-    e.preventDefault(); e.stopPropagation();
-    const x0 = e.clientX, l0 = largeur(c);
-    const col = $(`table.decompte col[data-col="${c.cle}"]`);
-    const table = $("table.decompte");
-    const total0 = parseFloat(table.style.width);
-    document.body.classList.add("redimension");
-    const bouger = (ev) => {
-      const l = Math.max(36, Math.round(l0 + ev.clientX - x0));
-      col.style.width = l + "px";
-      table.style.width = total0 - l0 + l + "px";
-      etat.largeurs[c.cle] = l;
-    };
-    const lacher = () => {
-      document.removeEventListener("mousemove", bouger);
-      document.removeEventListener("mouseup", lacher);
-      document.body.classList.remove("redimension");
-      memo.ecrire("compta-largeurs", etat.largeurs);
-    };
-    document.addEventListener("mousemove", bouger);
-    document.addEventListener("mouseup", lacher);
-  });
-}
-
-function lignesTriees() {
-  const lignes = etat.donnees.lignes.filter(visible);
-  const c = COLONNES.find((x) => x.cle === etat.tri.cle);
-  if (!c) return lignes; // ordre du fichier : par date
-  const ordre = new Map(etat.donnees.lignes.map((l, i) => [l.id, i]));
-  const cmp = (a, b) => (typeof a === "string" ? a.localeCompare(b, "fr", { numeric: true }) : a - b);
-  return lignes.sort((a, b) => cmp(c.tri(a), c.tri(b)) * etat.tri.sens || ordre.get(a.id) - ordre.get(b.id));
-}
+const tableDecompte = tableTriable({ selecteur: "table.decompte", colonnes: COLONNES, memoCle: "compta", rafraichir: () => rendreLignes() });
 
 function rendreLignes() {
-  $("#lignes").replaceChildren(...lignesTriees().map(rendreLigne));
+  $("#lignes").replaceChildren(...tableDecompte.trier(etat.donnees.lignes.filter(visible)).map(rendreLigne));
   $("#vide").hidden = etat.donnees.lignes.length > 0;
 }
 
@@ -329,16 +339,30 @@ function champ(obj, cle, attrs = {}) {
   return el("input", Object.assign({ type: "text", value: obj[cle] ?? "", oninput: (e) => { obj[cle] = e.target.value; } }, attrs));
 }
 
+const num = (v) => parseFloat(String(v ?? "").replace(",", ".")) || 0;
+const COLONNES_ACTES = [
+  { cle: "cotation", titre: "Cotation", largeur: 130, tri: (a) => String(a.cotation ?? ""),
+    cellule: (a) => champ(a, "cotation") },
+  { cle: "tarif", titre: "Tarif (€)", largeur: 100, align: "n", tri: (a) => num(a.tarif),
+    cellule: (a) => champ(a, "tarif", { inputmode: "decimal" }) },
+  { cle: "ferie", titre: "Férié (€)", largeur: 100, align: "n", tri: (a) => num(a.ferie),
+    cellule: (a) => champ(a, "ferie", { inputmode: "decimal" }) },
+  { cle: "precoce", titre: "Précoce (€)", largeur: 110, align: "n", tri: (a) => num(a.precoce),
+    cellule: (a) => champ(a, "precoce", { inputmode: "decimal" }) },
+  { cle: "tiers_payant", titre: "Tiers payant", largeur: 110, align: "c", tri: (a) => (a.tiers_payant ? 1 : 0),
+    cellule: (a) => el("input", { type: "checkbox", checked: a.tiers_payant, onchange: (e) => { a.tiers_payant = e.target.checked; } }) },
+  { cle: "depuis", titre: "Depuis", largeur: 150, tri: (a) => String(a.depuis ?? ""),
+    cellule: (a) => champ(a, "depuis", { type: "date" }) },
+  { cle: "actions", titre: "", largeur: 48, align: "c",
+    cellule: (a) => el("button", { class: "icone", title: "Supprimer", onclick: () => {
+      etat.tarifs.actes.splice(etat.tarifs.actes.indexOf(a), 1); rendreTarifs(); } }, "🗑") },
+];
+const tableActes = tableTriable({ selecteur: "table.actes", colonnes: COLONNES_ACTES, memoCle: "compta-actes", rafraichir: () => rendreTarifs() });
+
 function rendreTarifs() {
   const t = etat.tarifs;
-  $("#tarifs-actes").replaceChildren(...t.actes.map((a, i) => el("tr", {},
-    el("td", {}, champ(a, "cotation", { class: "cot" })),
-    el("td", { class: "n" }, champ(a, "tarif", { inputmode: "decimal" })),
-    el("td", { class: "n" }, champ(a, "ferie", { inputmode: "decimal" })),
-    el("td", { class: "n" }, champ(a, "precoce", { inputmode: "decimal" })),
-    el("td", {}, el("input", { type: "checkbox", checked: a.tiers_payant, onchange: (e) => { a.tiers_payant = e.target.checked; } })),
-    el("td", {}, champ(a, "depuis", { type: "date" })),
-    el("td", {}, el("button", { class: "icone", title: "Supprimer", onclick: () => { t.actes.splice(i, 1); rendreTarifs(); } }, "🗑")))));
+  $("#tarifs-actes").replaceChildren(...tableActes.trier(t.actes).map((a) => el("tr", {},
+    COLONNES_ACTES.map((c) => el("td", { class: c.align || "" }, c.cellule(a))))));
   const noms = { ik: "IK (€ par km)", md: "MD (€)", part_patiente: "Part patiente en tiers payant", retrocession: "Taux de rétrocession" };
   $("#tarifs-params").replaceChildren(...t.parametres.map((p, i) => el("tr", {},
     el("td", {}, el("select", { onchange: (e) => { p.cle = e.target.value; } },
@@ -425,7 +449,8 @@ async function demarrer() {
     importer([...e.dataTransfer.files].filter((f) => /\.csv$/i.test(f.name)));
   });
 
-  rendreEntete();
+  tableDecompte.entete();
+  tableActes.entete();
   await chargerMois(mois);
 }
 

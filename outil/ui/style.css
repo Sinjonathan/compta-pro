@@ -47,7 +47,8 @@ main { padding: 16px; max-width: 1900px; margin: 0 auto; }
   max-height: calc(100vh - 210px); }
 #vue-tarifs .table-boite { max-height: none; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
-table.decompte { table-layout: fixed; }
+table.decompte, table.actes { table-layout: fixed; }
+table.actes td input:not([type=checkbox]) { width: 100%; }
 th, td { padding: 0 8px; height: 36px; border-bottom: 1px solid var(--bord); text-align: left; vertical-align: middle;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { position: sticky; top: 0; z-index: 2; background: var(--surface); font-size: 12px; color: var(--doux);
