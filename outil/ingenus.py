@@ -2,6 +2,7 @@
 import csv
 import datetime as dt
 import os
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
@@ -24,20 +25,38 @@ def _montant(s: str) -> float:
     return float(s.replace(",", ".")) if s else 0.0
 
 
+def _cle(titre: str) -> str:
+    """« N° Facture » → « nfacture » : titres de colonnes comparés sans accents, espaces ni signes."""
+    t = unicodedata.normalize("NFKD", titre).encode("ascii", "ignore").decode().lower()
+    return "".join(c for c in t if c.isalnum())
+
+
+# Colonnes utiles, repérées par leur titre (Ingenus en ajoute parfois, ex. « N° PS remplaçant »)
+COLONNES = {"numero": "nfacture", "date": "date", "patiente": "patient", "depense": "mtdepense",
+            "reglement_assure": "reglementassure", "mode": "modereglement"}
+
+
 def lire_fichier(chemin: Path) -> List[FSE]:
     with open(chemin, encoding="cp1252", errors="replace", newline="") as fh:
         lignes = list(csv.reader(fh, delimiter=";"))
+    if not lignes:
+        return []
+    titres = {_cle(t): i for i, t in enumerate(lignes[0])}
+    manquantes = [k for k in COLONNES.values() if k not in titres]
+    if manquantes:
+        raise ValueError(f"colonnes introuvables dans l'en-tête : {', '.join(manquantes)}")
+    col = {nom: titres[cle] for nom, cle in COLONNES.items()}
     fses = []
     for x in lignes[1:]:
-        if len(x) < 12 or not x[2].strip():
+        if len(x) <= max(col.values()) or not x[col["numero"]].strip():
             continue
-        mode_brut = x[10].strip()
+        mode_brut = x[col["mode"]].strip()
         fses.append(FSE(
-            numero=x[2].strip(),
-            date=dt.datetime.strptime(x[3].strip(), "%d/%m/%Y").date(),
-            patiente=" ".join(x[5].split()).upper(),
-            depense=_montant(x[6]),
-            reglement_assure=_montant(x[9]),
+            numero=x[col["numero"]].strip(),
+            date=dt.datetime.strptime(x[col["date"]].strip(), "%d/%m/%Y").date(),
+            patiente=" ".join(x[col["patiente"]].split()).upper(),
+            depense=_montant(x[col["depense"]]),
+            reglement_assure=_montant(x[col["reglement_assure"]]),
             mode=MODES.get(mode_brut, mode_brut),
         ))
     return fses
