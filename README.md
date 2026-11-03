@@ -71,9 +71,11 @@ IK, MD, taux de rétrocession).
 
 ## Mises à jour
 
-Au lancement, l'app vérifie s'il existe une nouvelle version ; un bandeau l'annonce en haut de
-la page : **Installer et redémarrer**, et c'est tout. Vérification manuelle : menu
-**€ › Rechercher une mise à jour…**. Les données ne sont jamais touchées par une mise à jour.
+L'app vérifie s'il existe une nouvelle version au lancement, puis toutes les 12 heures tant
+qu'elle reste ouverte. Quand il y en a une, l'icône devient **€•** dans la barre des menus et un
+bandeau l'annonce en haut de la page : **Installer et redémarrer**, et c'est tout.
+Vérification immédiate : menu **€ › Rechercher une mise à jour…**.
+Les données ne sont jamais touchées par une mise à jour.
 
 ## Données et sauvegarde
 
@@ -90,7 +92,7 @@ Tout est dans **Documents › Compta pro - données** (menu **€ › Ouvrir le 
 données de santé : ne pas le partager.
 
 Ce qui sort du Mac : uniquement la vérification de version, auprès de GitHub
-(`api.github.com`), au lancement de l'app.
+(`api.github.com`), au lancement de l'app puis toutes les 12 heures.
 
 ## Limites
 

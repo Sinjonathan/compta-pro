@@ -17,6 +17,7 @@ from typing import Optional
 
 DEPOT = "Sinjonathan/compta-pro"  # dépôt GitHub dont les releases sont proposées
 DELAI = 6  # secondes
+INTERVALLE = 12 * 3600  # l'app vérifie au lancement, puis toutes les 12 h tant qu'elle reste ouverte
 
 
 def _tuple(v: str):
@@ -64,8 +65,13 @@ class Verificateur:
             self.disponible = None
         return self.disponible
 
-    def verifier_en_fond(self):
-        threading.Thread(target=self.verifier, daemon=True).start()
+    def surveiller(self, intervalle: int = INTERVALLE):
+        """Vérifie tout de suite, puis toutes les `intervalle` secondes, en arrière-plan."""
+        def boucle():
+            while True:
+                self.verifier()
+                threading.Event().wait(intervalle)
+        threading.Thread(target=boucle, daemon=True).start()
 
 
 def installer(url: str, apres=None) -> None:

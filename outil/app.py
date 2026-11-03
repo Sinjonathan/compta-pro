@@ -57,6 +57,11 @@ def main():
         rumps.MenuItem("Rechercher une mise à jour…", callback=rechercher),
         rumps.MenuItem(f"Version {version()}"),
     ]
+    def signaler_maj(_):
+        # « €• » dans la barre des menus quand une mise à jour attend (visible même page fermée)
+        app.title = "€•" if appli.maj.disponible else "€"
+
+    rumps.Timer(signaler_maj, 60).start()
     threading.Timer(0.8, ouvrir).start()
     app.run()
 

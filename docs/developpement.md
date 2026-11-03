@@ -50,7 +50,8 @@ La version n'est écrite nulle part dans le code : c'est le tag git. `dev/constr
 l'inscrit dans l'app (fichier généré `outil/_version.py`) ; depuis les sources, elle vaut « dev »
 et la recherche de mise à jour est désactivée.
 
-Sur son Mac, l'app voit la nouvelle version au lancement (bandeau dans la page) ou via
+Sur son Mac, l'app voit la nouvelle version au lancement puis toutes les 12 h (icône « €• »,
+bandeau dans la page) ou via
 « Rechercher une mise à jour… » dans le menu « € » : un clic télécharge le .zip, remplace
 `/Applications/Compta pro.app` et relance l'app. Les données ne sont pas touchées.
 

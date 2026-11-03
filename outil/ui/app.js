@@ -415,8 +415,14 @@ async function demarrer() {
   $("#pied").replaceChildren(`Compta pro ${etat.general.version} · données : ${etat.general.donnees} · `,
     el("a", { href: "https://github.com/Sinjonathan/compta-pro#readme", target: "_blank", rel: "noopener" }, "Mode d'emploi"));
   afficherMaj();
-  // La vérification sur GitHub se fait en fond au démarrage : on regarde à nouveau un peu plus tard.
-  setTimeout(async () => { try { Object.assign(etat.general, await api("GET", "/api/etat")); afficherMaj(); } catch (e) { /* hors ligne */ } }, 8000);
+  // L'app vérifie sur GitHub au lancement puis toutes les 12 h ; la page lui redemande le résultat
+  // peu après l'ouverture, quand on revient sur l'onglet, et toutes les heures (appel local).
+  const rafraichirMaj = async () => {
+    try { etat.general.maj = (await api("GET", "/api/etat")).maj; afficherMaj(); } catch (e) { /* app fermée */ }
+  };
+  setTimeout(rafraichirMaj, 8000);
+  setInterval(rafraichirMaj, 3600 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) rafraichirMaj(); });
   let mois = null;
   try { mois = localStorage.getItem("compta-mois"); } catch (e) { /* rien */ }
   if (!mois) mois = etat.general.mois.at(-1) || etat.general.aujourdhui.slice(0, 7);

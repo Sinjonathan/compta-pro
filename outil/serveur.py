@@ -254,7 +254,7 @@ def demarrer(exports: Path, depot: Depot, tarifs: Tarifs, version: str = "?", po
     port = port or port_libre()
     serveur = ThreadingHTTPServer(("127.0.0.1", port), fabriquer_gestionnaire(appli))
     threading.Thread(target=serveur.serve_forever, daemon=True).start()
-    appli.maj.verifier_en_fond()
+    appli.maj.surveiller()
     return appli, serveur, f"http://127.0.0.1:{port}/"
 
 
