@@ -1,0 +1,13 @@
+# Données privées : ne JAMAIS publier (données de santé)
+dev/essai/
+*.CSV
+*.csv
+!outil/defaut/*.csv
+# Construction (outil/_version.py est généré par dev/construire.sh)
+outil/_version.py
+.venv/
+build/
+dist/
+*.spec
+__pycache__/
+.DS_Store

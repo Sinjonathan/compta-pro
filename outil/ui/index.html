@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compta pro</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='black'/%3E%3Ctext x='32' y='45' font-family='-apple-system,Helvetica,sans-serif' font-size='40' font-weight='700' fill='white' text-anchor='middle'%3E€%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <header class="barre">
+    <h1>Compta pro</h1>
+    <nav class="onglets">
+      <button data-vue="decompte" class="actif">Décompte</button>
+      <button data-vue="tarifs">Tarifs</button>
+    </nav>
+    <div class="mois-choix">
+      <label for="mois">Mois</label>
+      <input type="month" id="mois">
+    </div>
+    <div class="actions">
+      <button id="btn-import" class="principal">Importer des exports Ingenus</button>
+      <input type="file" id="fichiers" accept=".csv,.CSV" multiple hidden>
+      <a id="btn-xlsx" class="bouton" href="#">Exporter .xlsx</a>
+      <button id="btn-pdf">PDF</button>
+    </div>
+  </header>
+
+  <div id="bandeau-maj" class="bandeau" hidden></div>
+  <main id="vue-decompte">
+    <section class="recap" id="recap"></section>
+    <section class="outils">
+      <div class="filtres" role="group" aria-label="Filtre">
+        <button data-filtre="tout" class="actif">Tout</button>
+        <button data-filtre="verifier">À vérifier</button>
+        <button data-filtre="manuel">Ajouts manuels</button>
+      </div>
+      <input type="search" id="recherche" placeholder="Chercher une patiente…">
+      <button id="btn-ajout">+ Ajouter une ligne</button>
+    </section>
+    <div class="table-boite">
+      <table class="decompte">
+        <thead></thead>
+        <tbody id="lignes"></tbody>
+      </table>
+      <p id="vide" class="vide" hidden>Aucune ligne pour ce mois : importe un export Ingenus ou ajoute une ligne.</p>
+    </div>
+  </main>
+
+  <main id="vue-tarifs" hidden>
+    <section class="tarifs-intro">
+      <p>Une seule grille pour tous les décomptes. Pour une <strong>hausse de tarif</strong>, ne modifie pas la ligne :
+        ajoute une nouvelle ligne avec la même cotation et la date « depuis » — les mois passés gardent l'ancien tarif.</p>
+    </section>
+    <h2>Actes</h2>
+    <div class="table-boite">
+      <table class="tarifs">
+        <thead><tr><th>Cotation</th><th class="n">Tarif (€)</th><th class="n">Férié (€)</th><th class="n">Précoce (€)</th>
+          <th>Tiers payant</th><th>Depuis</th><th></th></tr></thead>
+        <tbody id="tarifs-actes"></tbody>
+      </table>
+    </div>
+    <button id="btn-ajout-acte">+ Ajouter une cotation</button>
+    <h2>Paramètres</h2>
+    <div class="table-boite">
+      <table class="tarifs">
+        <thead><tr><th>Paramètre</th><th class="n">Valeur</th><th>Depuis</th><th></th></tr></thead>
+        <tbody id="tarifs-params"></tbody>
+      </table>
+    </div>
+    <button id="btn-ajout-param">+ Ajouter une valeur datée</button>
+    <div class="enregistrer"><button id="btn-tarifs" class="principal">Enregistrer les tarifs</button></div>
+  </main>
+
+  <footer class="pied" id="pied"></footer>
+  <section id="impression" aria-hidden="true"></section>
+  <div id="depot" hidden><div>Dépose les exports Ingenus ici</div></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/ui/app.js"></script>
+</body>
+</html>

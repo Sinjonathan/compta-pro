@@ -1,0 +1,16 @@
+# Dépendances de Compta pro (une app, pas un paquet Python : pas de table [project]).
+# La version de l'app est le tag git, inscrite à la compilation par dev/construire.sh.
+# Installer / mettre à jour l'environnement : uv sync   ·   versions figées dans uv.lock.
+
+[dependency-groups]
+app = [
+    "openpyxl>=3.1",
+    "rumps>=0.4",
+]
+dev = [
+    "pyinstaller>=6.10",
+    "pillow>=10",  # dessin de l'icône (dev/icone.py)
+]
+
+[tool.uv]
+default-groups = ["app", "dev"]
