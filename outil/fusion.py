@@ -25,6 +25,7 @@ class Bilan:
 
 
 # Débuts des notes écrites par l'outil (une autre note a été écrite par la titulaire : on n'y touche pas)
+PROPOSEES = ("auto", "orange", "rouge")  # statuts des lignes que l'outil peut encore revoir
 NOTES_OUTIL = ("Proposition revue", "Cotation « ", "Plusieurs cotations", "Aucune cotation", "Probablement", "Choisi d'après", "P ?",
                "autres possibilités")
 
@@ -143,8 +144,8 @@ def reevaluer(depot: Depot, tarifs: Tarifs, max_tours: int = 5) -> Dict[str, int
             lignes = depot.lire(a, mo)
             modif = False
             for l in lignes:
-                if not (l.statut and l.fse and l.montant_ingenus is not None):
-                    continue  # validée / saisie par la titulaire, ou ajout manuel
+                if not (l.statut in PROPOSEES and l.fse and l.montant_ingenus is not None):
+                    continue  # pointée, corrigée par la titulaire, ou ajout manuel
                 if l.note and not l.note.startswith(NOTES_OUTIL):
                     continue  # la titulaire a annoté la ligne : elle s'en occupe
                 avant = (l.cotation, l.ferie, l.km, l.statut, l.note)

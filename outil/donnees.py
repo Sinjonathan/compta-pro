@@ -36,7 +36,8 @@ class Ligne:
     montant_ingenus: Optional[float] = None  # « Mt dépense » de la FSE
     regle_patiente: Optional[float] = None   # « règlement assuré » de la FSE
     fse: str = ""  # vide = ajout manuel
-    # "" = validée ou saisie par la titulaire ; "auto" = proposée par l'outil, jugée sûre, pas encore
+    # "" = pointée par la titulaire (verrouillée) ; "modifiee" = corrigée ou saisie par elle, pas encore
+    # pointée (l'outil n'y touche plus) ; "auto" = proposée par l'outil, jugée sûre, pas encore
     # confirmée (peut être revue) ; "orange" = à vérifier ; "rouge" = rien ne correspond
     statut: str = ""
     note: str = ""

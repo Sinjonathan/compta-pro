@@ -13,7 +13,7 @@ from urllib.parse import unquote, urlparse
 import maj
 from donnees import MODES, Depot, Ligne, calculer, ligne_en_dict, recapituler
 from export_xlsx import exporter_mois
-from fusion import NOTES_OUTIL, integrer, reevaluer
+from fusion import NOTES_OUTIL, PROPOSEES, integrer, reevaluer
 from ingenus import charger_exports, lire_fichier
 from tarifs import Tarifs
 
@@ -53,12 +53,13 @@ class Appli:
             raise KeyError("ligne introuvable")
         touche = False
         if champs.get("statut") == "depointee":
-            # Dépointer : la ligne repasse à vérifier, mais l'outil n'y touche pas (note de la titulaire).
+            # Dépointer : la ligne redevient modifiable ; l'outil n'y touche toujours pas.
             if l.pointee:
-                l.statut = "orange"
-                l.note = l.note or NOTE_DEPOINTEE
+                l.statut = "modifiee"
             self.depot.ecrire(a, m, lignes)
             return self.mois(cle)
+        if l.pointee and any(k != "statut" for k in champs):
+            raise ValueError("Cette ligne est pointée : décoche-la pour la modifier.")
         for k, v in champs.items():
             if k == "date":
                 v = dt.date.fromisoformat(v)
@@ -84,8 +85,11 @@ class Appli:
             if getattr(l, k) != v:
                 setattr(l, k, v)
                 touche = touche or k in CHAMPS_SAISIS
-        if (touche and "statut" not in champs) or champs.get("statut") == "":
-            l.statut = ""  # la titulaire a corrigé ou validé la ligne
+        if champs.get("statut") == "":
+            l.statut = ""  # pointée : la titulaire a vérifié la ligne, elle est verrouillée
+        elif touche and l.statut in PROPOSEES:
+            l.statut = "modifiee"  # corrigée : l'outil n'y touche plus, reste à pointer
+        if touche or champs.get("statut") == "":
             if (l.note.startswith(NOTES_OUTIL) or l.note == NOTE_DEPOINTEE) and "note" not in champs:
                 l.note = ""  # la remarque de l'outil n'a plus lieu d'être
         if (l.date.year, l.date.month) != (a, m):  # changement de mois : on déplace la ligne
@@ -107,7 +111,8 @@ class Appli:
         self._ouvert(a, m)
         lignes = self.depot.lire(a, m)
         date = dt.date.fromisoformat(champs["date"]) if champs.get("date") else dt.date(a, m, 1)
-        l = Ligne(id=Ligne.nouvel_id(), date=date, patiente=" ".join(str(champs.get("patiente", "")).split()).upper())
+        l = Ligne(id=Ligne.nouvel_id(), date=date, patiente=" ".join(str(champs.get("patiente", "")).split()).upper(),
+                  statut="modifiee")  # saisie par la titulaire, à pointer une fois complète
         self.depot.ecrire(a, m, lignes + [l])
         rep = self.mois(cle)
         rep["nouvelle"] = l.id

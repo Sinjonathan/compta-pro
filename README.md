@@ -44,9 +44,10 @@ Choisir le **mois** en haut ; tout est enregistré automatiquement à chaque mod
 - La **cotation**, la majoration **F** (dimanche, férié) et les **IK** sont déduites du montant
   Ingenus. Case **orange** : à vérifier (lire la note) ; case **rouge** : aucune cotation de la
   grille ne correspond.
-- **Pointer** chaque ligne vérifiée avec la case **✓** (dernière colonne) : elle s'estompe et l'outil
-  n'y touchera plus. Corriger une ligne la pointe aussi. Pointer une ligne qui ne retrouve pas
-  Ingenus (ou sans cotation) demande confirmation. Décocher la case la remet « à vérifier ».
+- **Pointer** chaque ligne vérifiée avec la case **✓** (dernière colonne) : elle s'estompe, n'est
+  plus modifiable et l'outil n'y touchera plus. Pointer une ligne qui ne retrouve pas Ingenus
+  (ou sans cotation) demande confirmation. Décocher la case pour la corriger.
+- Une ligne **corrigée** n'est plus revue par l'outil, mais reste à pointer.
 - **P** (sortie précoce) n'est jamais coché automatiquement.
 - **L'outil apprend des lignes pointées.** Au début il hésite souvent (C ou V à 26,50 € ?), mais
   chaque ligne pointée sert aux autres, tous mois confondus : pointer un seul « C » lève la

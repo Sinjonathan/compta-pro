@@ -285,11 +285,16 @@ function optionsCotation(actuelle) {
 
 function rendreLigne(l) {
   const ch = (champ, valeur) => modifier(l.id, { [champ]: valeur });
-  return el("tr", { "data-id": l.id, class: [l.fse ? "" : "manuelle", l.pointee ? "pointee" : ""].join(" ") },
+  const tr = el("tr", { "data-id": l.id, class: [l.fse ? "" : "manuelle", l.pointee ? "pointee" : ""].join(" ") },
     COLONNES.map((c) => el("td", {
       class: [c.align || "", c.calc ? "calc" : "", c.classe ? c.classe(l) : "", "c-" + c.cle].join(" "),
       title: c.titreCellule ? c.titreCellule(l) : null,
     }, c.cellule(l, ch))));
+  if (l.pointee) {
+    // Ligne pointée : verrouillée ; seule sa case reste active, pour la dépointer.
+    tr.querySelectorAll("input, select, button").forEach((x) => { if (x.dataset.champ !== "pointee") x.disabled = true; });
+  }
+  return tr;
 }
 
 async function modifier(id, champs) {
