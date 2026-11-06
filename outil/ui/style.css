@@ -130,4 +130,10 @@ table.tarifs { width: auto; }
   #impression .ko { font-weight: bold; }
 }
 
+/* Ligne pointée : estompée, elle ne demande plus d'attention (pleine opacité au survol ou en saisie). */
+tbody tr.pointee td:not(.c-pointee) { opacity: .5; }
+tbody tr.pointee:hover td, tbody tr.pointee:focus-within td { opacity: 1; }
+body.mois-clos tbody tr.pointee td { opacity: 1; }
+
 [hidden] { display: none !important; }
+td.md-saisie input { font-weight: 600; color: #b45309; }

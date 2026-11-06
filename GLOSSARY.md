@@ -30,7 +30,7 @@ _Avoid_: acte, code
 Une cotation regroupant plusieurs actes facturés ensemble sur une même FSE (C+SF11,6, C+DIU, C+R IMPL…), avec son propre tarif.
 
 **Frais**:
-Ce qui s'ajoute à l'acte : majorations F et P, IK (indemnités kilométriques) et MD (majoration de déplacement).
+Ce qui s'ajoute à l'acte : majorations F et P, IK (indemnités kilométriques) et MD (majoration de déplacement, celle de la grille sauf si elle est saisie à la main sur la ligne, quand le remplaçant en a facturé une autre).
 _Avoid_: IF, IC
 
 **F (férié)**:
@@ -54,8 +54,9 @@ Ligne dont l'outil n'est pas sûr de la cotation (orange) ou n'en trouve aucune 
 Cotation trouvée par l'outil sans ambiguïté, pas encore confirmée par la titulaire ; elle peut être revue (et repasser à vérifier) quand l'outil apprend de nouvelles validations.
 _Avoid_: ligne validée
 
-**Ligne validée**:
-Ligne que la titulaire a corrigée, saisie, ou confirmée telle quelle ; seule source d'apprentissage de l'outil.
+**Ligne pointée**:
+Ligne que la titulaire a cochée, corrigée ou saisie : l'outil n'y touche plus ; seule source d'apprentissage de l'outil. Un mois ne se clôture que si toutes ses lignes sont pointées.
+_Avoid_: ligne validée
 
 **Mois clôturé**:
 Mois terminé dont les montants sont figés avec la grille du jour de sa clôture ; en lecture seule, il peut être rouvert.

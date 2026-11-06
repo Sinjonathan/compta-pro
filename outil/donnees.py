@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 from tarifs import Grille, Tarifs, _bool, _num
 
 ENTETE = ["id", "date", "patiente", "cotation", "F", "P", "km", "mode",
-          "montant_ingenus", "regle_patiente", "fse", "statut", "note"]
+          "montant_ingenus", "regle_patiente", "fse", "statut", "note", "md"]
 MODES = ["100%", "CB", "CHQ", "ESP"]
 NOM_MOIS = re.compile(r"^(\d{4})-(\d{2})\.csv$")
 
@@ -40,6 +40,12 @@ class Ligne:
     # confirmée (peut être revue) ; "orange" = à vérifier ; "rouge" = rien ne correspond
     statut: str = ""
     note: str = ""
+    md: Optional[float] = None  # MD saisie à la main (remplaçant) ; None = celle de la grille
+
+    @property
+    def pointee(self) -> bool:
+        """Vérifiée par la titulaire (validée, corrigée ou saisie) : l'outil n'y touche plus."""
+        return self.statut == ""
 
     @property
     def a_verifier(self) -> bool:
@@ -54,7 +60,7 @@ class Ligne:
         return [self.id, self.date.isoformat(), self.patiente, self.cotation,
                 "✓" if self.ferie else "", "✓" if self.precoce else "",
                 "" if self.km is None else str(self.km), self.mode,
-                f(self.montant_ingenus), f(self.regle_patiente), self.fse, self.statut, self.note]
+                f(self.montant_ingenus), f(self.regle_patiente), self.fse, self.statut, self.note, f(self.md)]
 
     @classmethod
     def depuis_csv(cls, r: Dict[str, str]) -> "Ligne":
@@ -65,7 +71,7 @@ class Ligne:
             cotation=r.get("cotation", ""), ferie=_bool(r.get("F", "")), precoce=_bool(r.get("P", "")),
             km=int(float(km.replace(",", "."))) if km else None, mode=r.get("mode") or "100%",
             montant_ingenus=opt(r.get("montant_ingenus")), regle_patiente=opt(r.get("regle_patiente")),
-            fse=r.get("fse", ""), statut=r.get("statut", ""), note=r.get("note", ""))
+            fse=r.get("fse", ""), statut=r.get("statut", ""), note=r.get("note", ""), md=opt(r.get("md")))
 
 
 def calculer(l: Ligne, g: Grille) -> dict:
@@ -73,7 +79,7 @@ def calculer(l: Ligne, g: Grille) -> dict:
     a = g.actes.get(l.cotation)
     acte = a.tarif if a else 0.0
     fp = ((a.ferie if l.ferie else 0) + (a.precoce if l.precoce else 0)) if a else 0.0
-    md = g.md if l.km is not None else 0.0
+    md = (g.md if l.md is None else l.md) if l.km is not None else 0.0
     ik = (l.km or 0) * g.ik
     frais = fp + md + ik
     total = acte + frais
@@ -102,6 +108,7 @@ def recapituler(lignes: List[Ligne], g: Grille) -> dict:
         "titulaire_remplacee": round(actes * taux, 2),
         "remplacant": round(actes * (1 - taux) + frais, 2),
         "a_verifier": sum(1 for l in lignes if l.a_verifier),
+        "a_pointer": sum(1 for l in lignes if not l.pointee),
         "ecarts_ingenus": sum(1 for c in calc if c["controle"] == "à vérifier"),
         "ajouts_manuels": sum(1 for l in lignes if not l.fse),
         "total_ingenus": round(sum(l.montant_ingenus or 0 for l in lignes if l.fse), 2),
@@ -192,5 +199,6 @@ def ligne_en_dict(l: Ligne, g: Grille) -> dict:
     d = asdict(l)
     d["date"] = l.date.isoformat()
     d["a_verifier"] = l.a_verifier
+    d["pointee"] = l.pointee
     d["calcul"] = calculer(l, g)
     return d

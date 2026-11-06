@@ -95,7 +95,13 @@ async function basculerCloture() {
       etat.donnees = await api("DELETE", `/api/mois/${etat.mois}/cloture`);
       toast(`${mois} est rouvert.`);
     } else {
-      if (!confirm(`Clôturer ${mois} ? Ses montants seront figés : une modification de la grille ne le changera plus, `
+      const r = etat.donnees.recap;
+      if (r.a_pointer) {
+        toast(`Il reste ${r.a_pointer} ligne(s) à pointer avant de clôturer ${mois} (filtre « À pointer »).`, 6000);
+        return;
+      }
+      const ecarts = r.ecarts_ingenus ? `⚠️ ${r.ecarts_ingenus} ligne(s) ne correspondent pas à Ingenus (filtre « À vérifier »).\n\n` : "";
+      if (!confirm(`${ecarts}Clôturer ${mois} ? Ses montants seront figés : une modification de la grille ne le changera plus, `
         + `et il passera en lecture seule (on peut le rouvrir).`)) return;
       etat.donnees = await api("POST", `/api/mois/${etat.mois}/cloture`);
       toast(`${mois} est clôturé.`);
@@ -114,6 +120,7 @@ function rendreRecap() {
     carte("Titulaire (seule)", euros(r.titulaire_seule)),
     carte(`Titulaire remplacée (${Math.round(r.taux_retrocession * 100)} %)`, euros(r.titulaire_remplacee)),
     carte("Remplaçant", euros(r.remplacant)),
+    carte("Lignes à pointer", String(r.a_pointer), r.a_pointer ? "alerte" : ""),
     carte("Cotations à vérifier", String(r.a_verifier), r.a_verifier ? "alerte" : ""),
     carte("Écarts avec Ingenus", String(r.ecarts_ingenus), r.ecarts_ingenus ? "alerte" : ""),
     carte("Lignes / ajouts manuels", `${r.nb_lignes} / ${r.ajouts_manuels}`),
@@ -123,6 +130,7 @@ function rendreRecap() {
 function visible(l) {
   if (etat.filtre === "verifier" && !(l.a_verifier || l.calcul.controle === "à vérifier")) return false;
   if (etat.filtre === "manuel" && l.fse) return false;
+  if (etat.filtre === "pointer" && l.pointee) return false;
   if (etat.recherche && !l.patiente.includes(etat.recherche.toUpperCase())) return false;
   return true;
 }
@@ -142,6 +150,11 @@ const COLONNES = [
   { cle: "km", titre: "IK km", aide: "Kilomètres aller-retour. Vide = pas de déplacement ; 0 = MD seule", largeur: 66, align: "n", tri: (l) => l.km ?? -1,
     cellule: (l, ch) => el("input", { type: "number", min: "0", step: "1", value: l.km ?? "", placeholder: "—", "data-champ": "km",
       title: "Vide = pas de déplacement ; 0 = MD seule", onchange: (e) => ch("km", e.target.value) }) },
+  { cle: "md", titre: "MD", aide: "Majoration de déplacement, préremplie avec la grille dès qu'il y a un déplacement ; modifiable (remplaçant). Vider = valeur de la grille",
+    largeur: 70, align: "n", tri: (l) => l.calcul.md, classe: (l) => (l.md != null ? "md-saisie" : ""),
+    cellule: (l, ch) => el("input", { type: "text", inputmode: "decimal", value: l.km == null ? "" : nb(l.calcul.md), placeholder: "—", "data-champ": "md",
+      title: l.md != null ? `Modifiée (grille : ${nb(etat.donnees.md_grille)})` : "Valeur de la grille — modifiable ; vider pour revenir à la grille",
+      onchange: (e) => ch("md", e.target.value) }) },
   { cle: "mode", titre: "Mode", largeur: 96, tri: (l) => l.mode,
     cellule: (l, ch) => el("select", { "data-champ": "mode", onchange: (e) => ch("mode", e.target.value) },
       etat.general.modes.map((m) => el("option", { value: m, selected: m === l.mode }, m))) },
@@ -162,9 +175,12 @@ const COLONNES = [
     cellule: (l) => el("span", { class: "fse" }, l.fse || "manuel") },
   { cle: "note", titre: "Note", largeur: 360, tri: (l) => l.note,
     cellule: (l, ch) => el("input", { type: "text", class: "note", value: l.note, title: l.note, "data-champ": "note", onchange: (e) => ch("note", e.target.value) }) },
-  { cle: "actions", titre: "", largeur: 64, align: "c",
+  { cle: "pointee", titre: "✓", aide: "Pointé : ligne vérifiée, l'outil n'y touche plus. Toutes les lignes doivent être pointées pour clôturer le mois",
+    largeur: 64, align: "c", tri: (l) => (l.pointee ? 1 : 0),
     cellule: (l) => [
-      l.a_verifier ? el("button", { class: "icone", title: "Valider la cotation telle quelle", onclick: () => modifier(l.id, { statut: "" }) }, "✓") : null,
+      el("input", { type: "checkbox", checked: l.pointee, "data-champ": "pointee",
+        title: l.pointee ? "Pointée — décocher pour la revoir" : "Pointer : la ligne est juste, l'outil n'y touchera plus",
+        onchange: (e) => pointer(l, e.target) }),
       !l.fse ? el("button", { class: "icone", title: "Supprimer cet ajout manuel", onclick: () => supprimer(l) }, "🗑") : null] },
 ];
 
@@ -269,7 +285,7 @@ function optionsCotation(actuelle) {
 
 function rendreLigne(l) {
   const ch = (champ, valeur) => modifier(l.id, { [champ]: valeur });
-  return el("tr", { "data-id": l.id, class: l.fse ? "" : "manuelle" },
+  return el("tr", { "data-id": l.id, class: [l.fse ? "" : "manuelle", l.pointee ? "pointee" : ""].join(" ") },
     COLONNES.map((c) => el("td", {
       class: [c.align || "", c.calc ? "calc" : "", c.classe ? c.classe(l) : "", "c-" + c.cle].join(" "),
       title: c.titreCellule ? c.titreCellule(l) : null,
@@ -298,6 +314,20 @@ async function modifier(id, champs) {
     const cible = $(`#lignes tr[data-id="${CSS.escape(focus[0])}"] [data-champ="${focus[1]}"]`);
     if (cible && cible !== document.activeElement) cible.focus();
   }
+}
+
+/** Pointer (ou dépointer) une ligne ; avertit si elle ne retrouve pas Ingenus ou n'a pas de cotation. */
+async function pointer(l, caseACocher) {
+  if (!caseACocher.checked) return modifier(l.id, { statut: "depointee" });
+  const soucis = [];
+  if (!l.cotation) soucis.push("elle n'a pas de cotation");
+  if (l.calcul.ok_total === false) soucis.push(`son total (${euros(l.calcul.total)}) ne correspond pas à Ingenus (${euros(l.montant_ingenus)})`);
+  else if (l.calcul.controle === "à vérifier") soucis.push("la part patiente ne correspond pas à Ingenus");
+  if (soucis.length && !confirm(`Attention : ${soucis.join(" et ")}.\n\nPointer quand même cette ligne (${l.patiente || "sans nom"}, ${l.date}) ?`)) {
+    caseACocher.checked = false;
+    return;
+  }
+  return modifier(l.id, { statut: "" });
 }
 
 async function ajouter() {

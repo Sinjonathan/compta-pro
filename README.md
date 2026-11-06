@@ -43,17 +43,23 @@ Choisir le **mois** en haut ; tout est enregistré automatiquement à chaque mod
 
 - La **cotation**, la majoration **F** (dimanche, férié) et les **IK** sont déduites du montant
   Ingenus. Case **orange** : à vérifier (lire la note) ; case **rouge** : aucune cotation de la
-  grille ne correspond. Corriger une ligne la valide ; le bouton **✓** la valide telle quelle.
+  grille ne correspond.
+- **Pointer** chaque ligne vérifiée avec la case **✓** (dernière colonne) : elle s'estompe et l'outil
+  n'y touchera plus. Corriger une ligne la pointe aussi. Pointer une ligne qui ne retrouve pas
+  Ingenus (ou sans cotation) demande confirmation. Décocher la case la remet « à vérifier ».
 - **P** (sortie précoce) n'est jamais coché automatiquement.
-- **L'outil apprend des validations.** Au début il hésite souvent (C ou V à 26,50 € ?), mais
-  chaque ligne validée sert aux autres, tous mois confondus : valider un seul « C » lève la
-  plupart des hésitations C/V. Une proposition qui change grâce à ce nouvel apprentissage
-  repasse en orange (« Proposition revue (avant : …) ») : rien ne change en silence.
+- **L'outil apprend des lignes pointées.** Au début il hésite souvent (C ou V à 26,50 € ?), mais
+  chaque ligne pointée sert aux autres, tous mois confondus : pointer un seul « C » lève la
+  plupart des hésitations C/V. Seules les lignes **non pointées** peuvent changer ; une
+  proposition qui change repasse en orange (« Proposition revue (avant : …) »).
 - **IK km** : vide = pas de déplacement ; 0 = majoration de déplacement (MD) seule.
+- **MD** : préremplie avec la valeur de la grille dès qu'il y a un déplacement. Si le remplaçant
+  a facturé une autre MD, taper la bonne valeur (elle s'affiche en orange) ; vider la case pour
+  revenir à la grille.
 - **Contrôle** : « OK » quand le total (acte + frais) retrouve le montant Ingenus.
 - **+ Ajouter une ligne** pour un acte facturé hors Ingenus (ajout manuel, supprimable avec 🗑).
 - Trier en cliquant sur un **titre de colonne** ; élargir une colonne en glissant son bord.
-- Filtres **À vérifier** / **Ajouts manuels** et recherche par patiente.
+- Filtres **À pointer** / **À vérifier** / **Ajouts manuels** et recherche par patiente.
 - En haut, le **récapitulatif** : totaux du mois, et partage en cas de remplacement
   (rétrocession de 25 % des actes, réglable dans les Tarifs). Le mois peut ensuite être
   **clôturé** (voir plus bas).
@@ -61,7 +67,8 @@ Choisir le **mois** en haut ; tout est enregistré automatiquement à chaque mod
 ### Clôturer un mois
 Quand le mois est terminé et payé : **Clôturer le mois**. Ses montants sont figés (une
 modification ultérieure de la grille ne le change plus) et il passe en lecture seule.
-- La clôture est refusée tant qu'il reste des lignes à vérifier (orange ou rouges).
+- La clôture est refusée tant que toutes les lignes ne sont pas **pointées** ; s'il reste des
+  écarts avec Ingenus, elle demande confirmation.
 - Une FSE qui arrive en retard pour un mois clôturé n'y est pas ajoutée : l'import le signale.
 - En cas d'erreur découverte après coup : **Rouvrir le mois** (une confirmation indique combien
   de lignes changeraient de montant avec la grille actuelle), corriger, puis clôturer à nouveau.

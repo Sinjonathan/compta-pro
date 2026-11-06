@@ -20,7 +20,8 @@ from tarifs import Tarifs
 UI = Path(__file__).resolve().parent / "ui"
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8"}
-CHAMPS_SAISIS = {"date", "patiente", "cotation", "ferie", "precoce", "km", "mode", "montant_ingenus"}
+NOTE_DEPOINTEE = "Dépointée"
+CHAMPS_SAISIS = {"date", "patiente", "cotation", "ferie", "precoce", "km", "md", "mode", "montant_ingenus"}
 verrou = threading.Lock()
 
 
@@ -37,7 +38,7 @@ class Appli:
         g = self.depot.grille(a, m, self.tarifs)
         c = self.depot.cloture(a, m)
         return {"mois": cle, "lignes": [ligne_en_dict(l, g) for l in lignes],
-                "recap": recapituler(lignes, g), "cloture": c["date"] if c else None}
+                "recap": recapituler(lignes, g), "cloture": c["date"] if c else None, "md_grille": g.md}
 
     def _ouvert(self, a: int, m: int) -> None:
         if self.depot.est_cloture(a, m):
@@ -51,11 +52,25 @@ class Appli:
         if l is None:
             raise KeyError("ligne introuvable")
         touche = False
+        if champs.get("statut") == "depointee":
+            # Dépointer : la ligne repasse à vérifier, mais l'outil n'y touche pas (note de la titulaire).
+            if l.pointee:
+                l.statut = "orange"
+                l.note = l.note or NOTE_DEPOINTEE
+            self.depot.ecrire(a, m, lignes)
+            return self.mois(cle)
         for k, v in champs.items():
             if k == "date":
                 v = dt.date.fromisoformat(v)
             elif k == "km":
                 v = None if v in (None, "") else int(float(v))
+            elif k == "md":
+                # MD modifiée (remplaçant) ; vide ou égale à la grille = celle de la grille
+                v = None if v in (None, "") else round(float(str(v).replace(",", ".")), 2)
+                if v is not None and abs(v - self.depot.grille(a, m, self.tarifs).md) < 0.005:
+                    v = None
+                if v is not None and l.km is None and "km" not in champs:
+                    l.km, touche = 0, True  # une MD suppose un déplacement
             elif k == "montant_ingenus":
                 if l.fse:
                     continue  # la donnée Ingenus ne se modifie pas
@@ -71,7 +86,7 @@ class Appli:
                 touche = touche or k in CHAMPS_SAISIS
         if (touche and "statut" not in champs) or champs.get("statut") == "":
             l.statut = ""  # la titulaire a corrigé ou validé la ligne
-            if l.note.startswith(NOTES_OUTIL) and "note" not in champs:
+            if (l.note.startswith(NOTES_OUTIL) or l.note == NOTE_DEPOINTEE) and "note" not in champs:
                 l.note = ""  # la remarque de l'outil n'a plus lieu d'être
         if (l.date.year, l.date.month) != (a, m):  # changement de mois : on déplace la ligne
             self._ouvert(l.date.year, l.date.month)
@@ -118,13 +133,9 @@ class Appli:
         lignes = self.depot.lire(a, m)
         if not lignes:
             raise ValueError("Ce mois est vide.")
-        reste = sum(1 for l in lignes if l.a_verifier)
+        reste = sum(1 for l in lignes if not l.pointee)
         if reste:
-            raise ValueError(f"Il reste {reste} ligne(s) à vérifier : valide-les ou corrige-les avant de clôturer.")
-        for l in lignes:
-            if l.statut == "auto":
-                l.statut = ""  # la clôture vaut validation : ces lignes servent à l'apprentissage
-        self.depot.ecrire(a, m, lignes)
+            raise ValueError(f"Il reste {reste} ligne(s) à pointer : vérifie-les et coche-les avant de clôturer.")
         self.depot.cloturer(a, m, self.tarifs.grille())
         return self.mois(cle)
 
