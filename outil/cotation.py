@@ -8,7 +8,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from tarifs import Grille
+from tarifs import Grille, arrondi
 
 KM_MAX = 100
 TOLERANCE = 0.005  # Ingenus calcule au centime près
@@ -93,7 +93,7 @@ def paires(montant: float, grille: Grille) -> List[Combinaison]:
             nom = f"2×{a.cotation}" if a is b else f"{a.cotation}+{b.cotation}"
             if nom in noms or f"{b.cotation}+{a.cotation}" in noms:
                 continue
-            for km in _avec_deplacement(round(montant - a.tarif - b.tarif, 2), grille):
+            for km in _avec_deplacement(arrondi(montant - a.tarif - b.tarif), grille):
                 res.append(Combinaison(nom, False, False, km, hors_grille=True))
     return res
 
@@ -105,7 +105,7 @@ def combinaisons(montant: float, date: dt.date, grille: Grille) -> List[Combinai
         for f in ([False, True] if ferie_possible else [False]):
             for p in (False, True):
                 base = acte.tarif + (acte.ferie if f else 0) + (acte.precoce if p else 0)
-                for km in _avec_deplacement(round(montant - base, 2), grille):
+                for km in _avec_deplacement(arrondi(montant - base), grille):
                     res.append(Combinaison(acte.cotation, f, p, km))
     return res + paires(montant, grille)
 
@@ -156,7 +156,7 @@ def proposer(montant: float, date: dt.date, grille: Grille,
         cands = [c for c in cands if c.ferie]  # un dimanche/férié, Ingenus applique F
     if not cands:
         note = f"Aucune cotation de la grille ne donne {montant:.2f} €"
-        moitie = [c for c in combinaisons(round(montant / 2, 2), date, grille) if not c.hors_grille]
+        moitie = [c for c in combinaisons(arrondi(montant / 2), date, grille) if not c.hors_grille]
         if moitie:
             note += f" — peut-être 2 séances de {montant / 2:.2f} € ({moitie[0].libelle()})"
         return Proposition(INCONNUE, None, note=note)

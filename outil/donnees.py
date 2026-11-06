@@ -11,11 +11,12 @@ import os
 import re
 import shutil
 import uuid
+from decimal import ROUND_HALF_UP, Decimal
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from tarifs import Grille, Tarifs, _bool, _num
+from tarifs import Grille, Tarifs, _bool, _num, arrondi
 
 ENTETE = ["id", "date", "patiente", "cotation", "F", "P", "km", "mode",
           "montant_ingenus", "regle_patiente", "fse", "statut", "note", "md"]
@@ -89,31 +90,35 @@ def calculer(l: Ligne, g: Grille) -> dict:
         patiente = 0.0
     else:
         patiente = (acte * g.part_patiente if (a and a.tiers_payant) else acte) + frais
+    total, patiente = arrondi(total), arrondi(patiente)  # contrôles sur les montants affichés
     ok_total = None if l.montant_ingenus is None else abs(total - l.montant_ingenus) < 0.005
     ok_patiente = None if l.regle_patiente is None or l.mode == "100%" else abs(patiente - l.regle_patiente) < 0.015
     controle = "" if ok_total is None else ("OK" if ok_total and ok_patiente is not False else "à vérifier")
-    return {"acte": round(acte, 2), "fp": round(fp, 2), "md": round(md, 2), "ik": round(ik, 2),
-            "frais": round(frais, 2), "total": round(total, 2), "patiente": round(patiente, 2),
+    return {"acte": arrondi(acte), "fp": arrondi(fp), "md": arrondi(md), "ik": arrondi(ik),
+            "frais": arrondi(frais), "total": arrondi(total), "patiente": arrondi(patiente),
             "ok_total": ok_total, "ok_patiente": ok_patiente, "controle": controle}
 
 
 def recapituler(lignes: List[Ligne], g: Grille) -> dict:
     calc = [calculer(l, g) for l in lignes]
-    actes = sum(c["acte"] for c in calc)
-    frais = sum(c["frais"] for c in calc)
+    # Calculs en décimal exact : des sommes de flottants dériveraient de quelques millièmes.
+    actes = sum((Decimal(repr(c["acte"])) for c in calc), Decimal(0))
+    frais = sum((Decimal(repr(c["frais"])) for c in calc), Decimal(0))
     taux = g.retrocession
+    retro = (actes * Decimal(repr(taux))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return {
         "nb_lignes": len(lignes),
-        "total_actes": round(actes, 2), "total_frais": round(frais, 2),
-        "titulaire_seule": round(actes + frais, 2),
+        "total_actes": float(actes), "total_frais": float(frais),
+        "titulaire_seule": float(actes + frais),
         "taux_retrocession": taux,
-        "titulaire_remplacee": round(actes * taux, 2),
-        "remplacant": round(actes * (1 - taux) + frais, 2),
+        "titulaire_remplacee": float(retro),
+        # Le remplaçant garde le reste : titulaire + remplaçant = total, au centime près.
+        "remplacant": float(actes - retro + frais),
         "a_verifier": sum(1 for l in lignes if l.a_verifier),
         "a_pointer": sum(1 for l in lignes if not l.pointee),
         "ecarts_ingenus": sum(1 for c in calc if c["controle"] == "à vérifier"),
         "ajouts_manuels": sum(1 for l in lignes if not l.fse),
-        "total_ingenus": round(sum(l.montant_ingenus or 0 for l in lignes if l.fse), 2),
+        "total_ingenus": float(sum((Decimal(repr(l.montant_ingenus or 0)) for l in lignes if l.fse), Decimal(0))),
     }
 
 

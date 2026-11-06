@@ -80,4 +80,4 @@ La sage-femme qui exerce seule et dont le numéro PS figure sur toutes les FSE.
 Personne qui exerce à la place de la titulaire sur une période donnée.
 
 **Rétrocession**:
-Part des actes réalisés par le Remplaçant reversée à la Titulaire (25 % des actes ; le Remplaçant garde 75 % des actes et la totalité des frais).
+Part des actes réalisés par le Remplaçant reversée à la Titulaire (25 % des actes, arrondi commercial au centime ; le Remplaçant garde le reste des actes et la totalité des frais, si bien que Titulaire + Remplaçant = total au centime près).

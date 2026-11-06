@@ -7,9 +7,18 @@ Une seule version par cotation : une modification vaut pour tous les mois non cl
 un mois clôturé garde la copie de la grille faite à sa clôture (voir docs/adr/0001).
 """
 import csv
+from decimal import ROUND_HALF_UP, Decimal
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List
+
+
+def arrondi(x: float) -> float:
+    """Arrondi commercial au centime (0,005 → 0,01), sans les aléas du round() sur les flottants
+    (round(259.325, 2) donne 259.32)."""
+    d = Decimal(repr(x)).quantize(Decimal("1e-9"))  # efface le bruit des flottants (777.9749999999999)
+    return float(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
 
 ENTETE_TARIFS = ["cotation", "tarif", "ferie", "precoce", "tiers_payant"]
 ENTETE_PARAMS = ["cle", "valeur"]

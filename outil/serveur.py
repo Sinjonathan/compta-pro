@@ -15,7 +15,7 @@ from donnees import MODES, Depot, Ligne, calculer, ligne_en_dict, recapituler
 from export_xlsx import exporter_mois
 from fusion import NOTES_OUTIL, PROPOSEES, integrer, reevaluer
 from ingenus import charger_exports, lire_fichier
-from tarifs import Tarifs
+from tarifs import Tarifs, arrondi
 
 UI = Path(__file__).resolve().parent / "ui"
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -68,7 +68,7 @@ class Appli:
                 v = None if v in (None, "") else int(float(v))
             elif k == "md":
                 # MD modifiée (remplaçant) ; vide ou égale à la grille = celle de la grille
-                v = None if v in (None, "") else round(float(str(v).replace(",", ".")), 2)
+                v = None if v in (None, "") else arrondi(float(str(v).replace(",", ".")))
                 if v is not None and abs(v - self.depot.grille(a, m, self.tarifs).md) < 0.005:
                     v = None
                 if v is not None and l.km is None and "km" not in champs:
