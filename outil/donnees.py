@@ -38,7 +38,8 @@ class Ligne:
     fse: str = ""  # vide = ajout manuel
     # "" = pointée par la titulaire (verrouillée) ; "modifiee" = corrigée ou saisie par elle, pas encore
     # pointée (l'outil n'y touche plus) ; "auto" = proposée par l'outil, jugée sûre, pas encore
-    # confirmée (peut être revue) ; "orange" = à vérifier ; "rouge" = rien ne correspond
+    # confirmée (peut être revue) ; "orange" = à vérifier ; "rouge" = rien ne correspond ;
+    # "orange-corrigee" / "rouge-corrigee" = corrigée par elle, mais cotation toujours à choisir
     statut: str = ""
     note: str = ""
     md: Optional[float] = None  # MD saisie à la main (remplaçant) ; None = celle de la grille
@@ -50,7 +51,7 @@ class Ligne:
 
     @property
     def a_verifier(self) -> bool:
-        return self.statut in ("orange", "rouge")
+        return self.statut.split("-")[0] in ("orange", "rouge")
 
     @staticmethod
     def nouvel_id() -> str:

@@ -51,12 +51,13 @@ class Appli:
         l = next((x for x in lignes if x.id == id_), None)
         if l is None:
             raise KeyError("ligne introuvable")
-        touche = False
+        touche = cotation_changee = False
         if champs.get("statut") == "depointee":
             # Dépointer : la ligne redevient modifiable ; l'outil n'y touche toujours pas.
             if l.pointee:
                 l.statut = "modifiee"
-            self.depot.ecrire(a, m, lignes)
+                self.depot.ecrire(a, m, lignes)
+                return self._apres_apprentissage(cle)  # l'outil désapprend cette ligne
             return self.mois(cle)
         if l.pointee and any(k != "statut" for k in champs):
             raise ValueError("Cette ligne est pointée : décoche-la pour la modifier.")
@@ -85,11 +86,19 @@ class Appli:
             if getattr(l, k) != v:
                 setattr(l, k, v)
                 touche = touche or k in CHAMPS_SAISIS
+                cotation_changee = cotation_changee or k == "cotation"
+        doute_leve = champs.get("statut") == "" or cotation_changee
         if champs.get("statut") == "":
             l.statut = ""  # pointée : la titulaire a vérifié la ligne, elle est verrouillée
-        elif touche and l.statut in PROPOSEES:
-            l.statut = "modifiee"  # corrigée : l'outil n'y touche plus, reste à pointer
-        if touche or champs.get("statut") == "":
+        elif touche:
+            # Corrigée : l'outil n'y touche plus, elle reste à pointer. Un doute sur la cotation
+            # (orange/rouge) reste affiché tant qu'elle n'a pas choisi la cotation.
+            couleur = l.statut.split("-")[0]
+            if couleur in ("orange", "rouge") and not cotation_changee:
+                l.statut = couleur + "-corrigee"
+            elif l.statut in PROPOSEES or l.statut.endswith("-corrigee"):
+                l.statut = "modifiee"
+        if doute_leve:
             if (l.note.startswith(NOTES_OUTIL) or l.note == NOTE_DEPOINTEE) and "note" not in champs:
                 l.note = ""  # la remarque de l'outil n'a plus lieu d'être
         if (l.date.year, l.date.month) != (a, m):  # changement de mois : on déplace la ligne
@@ -98,12 +107,14 @@ class Appli:
             autre = self.depot.lire(l.date.year, l.date.month)
             self.depot.ecrire(l.date.year, l.date.month, autre + [l])
         self.depot.ecrire(a, m, lignes)
-        rep = self.mois(cle) if not touche else None
-        if touche or champs.get("statut") == "":
-            # Le savoir de l'outil a changé : les lignes encore à vérifier en profitent.
-            changees = reevaluer(self.depot, self.tarifs)
-            rep = self.mois(cle)
-            rep["reevaluees"] = sum(changees.values())
+        # L'outil n'apprend que des lignes pointées : seul un pointage change son savoir.
+        return self._apres_apprentissage(cle) if champs.get("statut") == "" else self.mois(cle)
+
+    def _apres_apprentissage(self, cle: str) -> dict:
+        """Le savoir de l'outil a changé : les lignes encore à vérifier en profitent."""
+        changees = reevaluer(self.depot, self.tarifs)
+        rep = self.mois(cle)
+        rep["reevaluees"] = sum(changees.values())
         return rep
 
     def ajouter(self, cle: str, champs: dict) -> dict:

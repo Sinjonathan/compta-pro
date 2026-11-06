@@ -40,7 +40,7 @@ def exporter_mois(lignes: List[Ligne], grille: Grille, annee: int, mois: int, cl
         for i in (7, 8, 9, 10, 11, 13, 14):
             ws.cell(r, i).number_format = EUROS
         if l.a_verifier:
-            ws.cell(r, 3).fill = orange if l.statut == "orange" else rouge
+            ws.cell(r, 3).fill = orange if l.statut.startswith("orange") else rouge
         if k["controle"] == "à vérifier":
             ws.cell(r, 15).fill = rouge
     ws.freeze_panes = "C2"

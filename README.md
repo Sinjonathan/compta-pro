@@ -47,9 +47,10 @@ Choisir le **mois** en haut ; tout est enregistré automatiquement à chaque mod
 - **Pointer** chaque ligne vérifiée avec la case **✓** (dernière colonne) : elle s'estompe, n'est
   plus modifiable et l'outil n'y touchera plus. Pointer une ligne qui ne retrouve pas Ingenus
   (ou sans cotation) demande confirmation. Décocher la case pour la corriger.
-- Une ligne **corrigée** n'est plus revue par l'outil, mais reste à pointer.
+- Une ligne **corrigée** n'est plus revue par l'outil, mais reste à pointer. Si sa cotation était
+  orange ou rouge, elle le reste tant que la cotation n'a pas été choisie (ou la ligne pointée).
 - **P** (sortie précoce) n'est jamais coché automatiquement.
-- **L'outil apprend des lignes pointées.** Au début il hésite souvent (C ou V à 26,50 € ?), mais
+- **L'outil n'apprend que des lignes pointées.** Au début il hésite souvent (C ou V à 26,50 € ?), mais
   chaque ligne pointée sert aux autres, tous mois confondus : pointer un seul « C » lève la
   plupart des hésitations C/V. Seules les lignes **non pointées** peuvent changer ; une
   proposition qui change repasse en orange (« Proposition revue (avant : …) »).

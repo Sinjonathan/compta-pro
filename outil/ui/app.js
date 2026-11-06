@@ -141,7 +141,7 @@ const COLONNES = [
     cellule: (l, ch) => el("input", { type: "date", value: l.date, "data-champ": "date", onchange: (e) => ch("date", e.target.value) }) },
   { cle: "patiente", titre: "Patiente", largeur: 220, tri: (l) => l.patiente,
     cellule: (l, ch) => el("input", { type: "text", value: l.patiente, title: l.patiente, "data-champ": "patiente", onchange: (e) => ch("patiente", e.target.value) }) },
-  { cle: "cotation", titre: "Cotation", largeur: 118, tri: (l) => l.cotation, classe: (l) => "cot " + (l.statut || ""),
+  { cle: "cotation", titre: "Cotation", largeur: 118, tri: (l) => l.cotation, classe: (l) => "cot " + (l.statut || "").split("-")[0],
     cellule: (l, ch) => el("select", { "data-champ": "cotation", onchange: (e) => ch("cotation", e.target.value) }, optionsCotation(l.cotation)) },
   { cle: "ferie", titre: "F", aide: "Férié / dimanche", largeur: 40, align: "c", tri: (l) => (l.ferie ? 1 : 0),
     cellule: (l, ch) => el("input", { type: "checkbox", checked: l.ferie, "data-champ": "ferie", title: "Férié / dimanche", onchange: (e) => ch("ferie", e.target.checked) }) },

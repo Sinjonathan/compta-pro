@@ -55,7 +55,7 @@ Cotation trouvée par l'outil sans ambiguïté, pas encore confirmée par la tit
 _Avoid_: ligne validée
 
 **Ligne pointée**:
-Ligne que la titulaire a cochée après l'avoir vérifiée : verrouillée, l'outil n'y touche plus. Un mois ne se clôture que si toutes ses lignes sont pointées. Une ligne corrigée ou saisie mais pas encore pointée n'est plus revue par l'outil non plus ; avec les lignes pointées, ce sont les seules sources d'apprentissage de l'outil.
+Ligne que la titulaire a cochée après l'avoir vérifiée : verrouillée, l'outil n'y touche plus. Un mois ne se clôture que si toutes ses lignes sont pointées. Seule source d'apprentissage de l'outil. Une ligne corrigée ou saisie mais pas encore pointée n'est plus revue par l'outil, et ne lui apprend rien.
 _Avoid_: ligne validée
 
 **Mois clôturé**:

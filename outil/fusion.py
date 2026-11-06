@@ -1,9 +1,10 @@
 """Intégration des FSE Ingenus dans les fichiers mensuels, et apprentissage au fil des validations.
 
 Ce que l'outil « sait » (Connaissances) vient uniquement des lignes déjà en base qui sont
-sûres ou validées par la titulaire (sans statut orange/rouge), tous mois confondus. Chaque fois
-que ce savoir change (import, validation, correction), les lignes encore à vérifier sont
-réévaluées : valider une fois « C » à 26,50 € suffit à lever les autres hésitations C/V.
+pointées par la titulaire, ou proposées sûres (statut auto), tous mois confondus ; une ligne
+corrigée mais pas encore pointée ne compte pas. Chaque fois que ce savoir change (import,
+pointage), les lignes encore à vérifier sont réévaluées : pointer une fois « C » à 26,50 €
+suffit à lever les autres hésitations C/V.
 """
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -51,7 +52,7 @@ class Connaissances:
             s.sort(key=lambda x: x[0])
 
     def ajouter(self, l: Ligne) -> None:
-        if l.cotation and not l.a_verifier:  # validées, saisies, ou proposées sûres
+        if l.cotation and (l.pointee or l.statut == "auto"):  # pointées, ou proposées sûres
             self.seances[l.patiente].append((l.date, l.id, _combinaison(l)))
             (self.auto if l.statut == "auto" else self.validees)[l.cotation] += 1
             self.statut_par_id[l.id] = l.statut
